@@ -19,7 +19,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['filter-expand-change']);
+const emit = defineEmits(['filter-expand-change', 'lora-files-change']);
 
 const loraFiles = ref([]);
 const error = ref('');
@@ -114,6 +114,7 @@ async function loadLoraFiles(path) {
             error.value = data.error;
         } else {
             loraFiles.value = data.lora_files;
+            emit('lora-files-change', data.lora_files);  // 添加这行
         }
     } catch (err) {
         error.value = `加载失败: ${err.message}`;

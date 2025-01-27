@@ -12,109 +12,113 @@ const props = defineProps({
     }
 });
 
-// 从所有 lora 文件中提取唯一的 metadata 值
-const uniqueVersions = computed(() => {
-    const versions = new Set();
-    props.loraFiles.forEach(lora => {
-        const version = lora.metadata?.ss_base_model_version;
-        if (version && version !== 'Unknown') {
-            versions.add(version);
-        }
-    });
-    return Array.from(versions).sort();
-});
-
-const uniqueDims = computed(() => {
-    const dims = new Set();
-    props.loraFiles.forEach(lora => {
-        const dim = lora.metadata?.ss_network_dim;
-        if (dim) {
-            dims.add(dim);
-        }
-    });
-    return Array.from(dims).sort((a, b) => Number(a) - Number(b));
-});
-
-// 添加调试输出 - 移到computed之后
-watch(() => props.loraFiles, (newFiles) => {
-    console.log('Received lora files:', newFiles);
-    console.log('Found versions:', uniqueVersions.value);
-    console.log('Found dims:', uniqueDims.value);
-}, { immediate: true });
-
 const emit = defineEmits(['expand-change', 'filter-change']);
 
-// 筛选条件状态
-const selectedVersions = ref(new Set());
-const selectedDims = ref(new Set());
+// 分析数据，获取唯一值
+const metadata = computed(() => {
+    const result = {
+        versions: new Set(),
+        dims: new Set(),
+        alphas: new Set()
+    };
+    console.log(props.loraFiles);
+    props.loraFiles.forEach(lora => {
+        if (lora.metadata) {
+            if (lora.metadata.ss_base_model_version) {
+                result.versions.add(lora.metadata.ss_base_model_version);
+            }
+            if (lora.metadata.ss_network_dim) {
+                result.dims.add(lora.metadata.ss_network_dim);
+            }
+            if (lora.metadata.ss_network_alpha) {
+                result.alphas.add(lora.metadata.ss_network_alpha);
+            }
+        }
+    });
 
-function toggleVersion(version) {
-    if (selectedVersions.value.has(version)) {
-        selectedVersions.value.delete(version);
-    } else {
-        selectedVersions.value.add(version);
-    }
-    emitFilterChange();
-}
+    return {
+        versions: Array.from(result.versions).sort(),
+        dims: Array.from(result.dims).sort((a, b) => Number(a) - Number(b)),
+        alphas: Array.from(result.alphas).sort((a, b) => Number(a) - Number(b))
+    };
+});
 
-function toggleDim(dim) {
-    if (selectedDims.value.has(dim)) {
-        selectedDims.value.delete(dim);
+// 选中的筛选条件
+const selectedFilters = ref({
+    versions: new Set(),
+    dims: new Set(),
+    alphas: new Set()
+});
+
+// 处理筛选条件变化
+function toggleFilter(type, value) {
+    if (selectedFilters.value[type].has(value)) {
+        selectedFilters.value[type].delete(value);
     } else {
-        selectedDims.value.add(dim);
+        selectedFilters.value[type].add(value);
     }
     emitFilterChange();
 }
 
 function emitFilterChange() {
     emit('filter-change', {
-        versions: Array.from(selectedVersions.value),
-        dims: Array.from(selectedDims.value)
+        versions: Array.from(selectedFilters.value.versions),
+        dims: Array.from(selectedFilters.value.dims),
+        alphas: Array.from(selectedFilters.value.alphas)
     });
-}
-
-function toggleSidebar() {
-    emit('expand-change', !props.isExpanded);
 }
 </script>
 
 <template>
     <div class="filter-sidebar" :class="{ 'collapsed': !isExpanded }">
-        <button class="toggle-btn" @click="toggleSidebar">
+        <button class="toggle-btn" @click="$emit('expand-change', !isExpanded)">
             {{ isExpanded ? '▶' : '◀' }}
         </button>
-        <div class="content" v-show="isExpanded">
-            <h2>筛选条件</h2>
+        
+        <div class="content" v-if="isExpanded">
+            <h2>筛选</h2>
             
-            <!-- 添加调试输出 -->
-            <div class="debug-info" v-if="loraFiles.length === 0">
-                暂无可筛选的文件
-            </div>
-            
-            <div v-if="uniqueVersions.length > 0" class="filter-section">
-                <h3>版本 ({{ uniqueVersions.length }})</h3>
+            <!-- SD 版本筛选 -->
+            <div class="filter-section" v-if="metadata.versions.length">
+                <h3>SD 版本 ({{ metadata.versions.length }})</h3>
                 <div class="filter-group">
-                    <label v-for="version in uniqueVersions" :key="version">
+                    <label v-for="version in metadata.versions" :key="version">
                         <input 
-                            type="checkbox" 
-                            :checked="selectedVersions.has(version)"
-                            @change="toggleVersion(version)"
+                            type="checkbox"
+                            :checked="selectedFilters.versions.has(version)"
+                            @change="toggleFilter('versions', version)"
                         >
-                        SD {{ version }}
+                        {{ version }}
                     </label>
                 </div>
             </div>
             
-            <div v-if="uniqueDims.length > 0" class="filter-section">
-                <h3>维度 ({{ uniqueDims.length }})</h3>
+            <!-- 维度筛选 -->
+            <div class="filter-section" v-if="metadata.dims.length">
+                <h3>维度 ({{ metadata.dims.length }})</h3>
                 <div class="filter-group">
-                    <label v-for="dim in uniqueDims" :key="dim">
+                    <label v-for="dim in metadata.dims" :key="dim">
                         <input 
-                            type="checkbox" 
-                            :checked="selectedDims.has(dim)"
-                            @change="toggleDim(dim)"
+                            type="checkbox"
+                            :checked="selectedFilters.dims.has(dim)"
+                            @change="toggleFilter('dims', dim)"
                         >
                         {{ dim }}
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Alpha 值筛选 -->
+            <div class="filter-section" v-if="metadata.alphas.length">
+                <h3>Alpha 值 ({{ metadata.alphas.length }})</h3>
+                <div class="filter-group">
+                    <label v-for="alpha in metadata.alphas" :key="alpha">
+                        <input 
+                            type="checkbox"
+                            :checked="selectedFilters.alphas.has(alpha)"
+                            @change="toggleFilter('alphas', alpha)"
+                        >
+                        {{ alpha }}
                     </label>
                 </div>
             </div>

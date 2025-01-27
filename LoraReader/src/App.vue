@@ -10,6 +10,7 @@ const selectorVisible = ref(false);
 const currentPath = ref('/');
 const isListExpanded = ref(true);
 const isFilterExpanded = ref(true);
+const loraFiles = ref([]);
 
 async function checkConfig() {
   const response = await fetch('http://localhost:5000/config');
@@ -48,6 +49,9 @@ function handleExpandChange(expanded) {
 function handleFilterExpandChange(expanded) {
   isFilterExpanded.value = expanded;
 }
+function handleLoraFilesChange(files) {
+    loraFiles.value = files;
+}
 
 onMounted(checkConfig);
 </script>
@@ -73,11 +77,13 @@ onMounted(checkConfig);
         :is-expanded="isListExpanded"
         :is-filter-expanded="isFilterExpanded"
         @filter-expand-change="handleFilterExpandChange"
+        @lora-files-change="handleLoraFilesChange"
       />
     </div>
     <FilterSidebar 
       v-if="!showSelector" 
       :is-expanded="isFilterExpanded"
+      :lora-files="loraFiles"
       @expand-change="handleFilterExpandChange"
     />
   </div>
