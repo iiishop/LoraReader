@@ -76,6 +76,23 @@ watch(selectedFilters, (newVal) => {
     emitFilterChange();
 }, { deep: true });
 
+// 添加筛选项计数
+const filterCounts = computed(() => ({
+    versions: selectedFilters.value.versions.size,
+    dims: selectedFilters.value.dims.size,
+    alphas: selectedFilters.value.alphas.size
+}));
+
+// 清除所有筛选
+function clearAllFilters() {
+    selectedFilters.value = {
+        versions: new Set(),
+        dims: new Set(),
+        alphas: new Set()
+    };
+    emitFilterChange();
+}
+
 </script>
 
 <template>
@@ -85,11 +102,25 @@ watch(selectedFilters, (newVal) => {
         </button>
         
         <div class="content" v-if="isExpanded">
-            <h2>筛选</h2>
+            <div class="filter-header">
+                <h2>筛选</h2>
+                <button 
+                    v-if="filterCounts.versions + filterCounts.dims + filterCounts.alphas > 0"
+                    class="clear-all-btn"
+                    @click="clearAllFilters"
+                >
+                    清除全部
+                </button>
+            </div>
             
             <!-- SD 版本筛选 -->
             <div class="filter-section" v-if="metadata.versions.length">
-                <h3>SD 版本 ({{ metadata.versions.length }})</h3>
+                <div class="section-header">
+                    <h3>SD 版本</h3>
+                    <span class="count-badge" v-if="filterCounts.versions">
+                        {{ filterCounts.versions }}/{{ metadata.versions.length }}
+                    </span>
+                </div>
                 <div class="filter-group">
                     <label v-for="version in metadata.versions" :key="version">
                         <input 
@@ -97,37 +128,57 @@ watch(selectedFilters, (newVal) => {
                             v-model="selectedFilters.versions"
                             :value="version"
                         >
-                        {{ version }}
+                        <span class="checkbox-label">{{ version }}</span>
                     </label>
                 </div>
             </div>
             
             <!-- 维度筛选 -->
             <div class="filter-section" v-if="metadata.dims.length">
-                <h3>维度 ({{ metadata.dims.length }})</h3>
-                <div class="filter-group">
-                    <label v-for="dim in metadata.dims" :key="dim">
+                <div class="section-header">
+                    <h3>维度</h3>
+                    <span class="count-badge" v-if="filterCounts.dims">
+                        {{ filterCounts.dims }}/{{ metadata.dims.length }}
+                    </span>
+                </div>
+                <div class="filter-group chips">
+                    <label 
+                        v-for="dim in metadata.dims" 
+                        :key="dim"
+                        class="chip"
+                        :class="{ active: selectedFilters.dims.has(dim) }"
+                    >
                         <input 
                             type="checkbox"
                             v-model="selectedFilters.dims"
                             :value="dim"
                         >
-                        {{ dim }}
+                        <span>{{ dim }}</span>
                     </label>
                 </div>
             </div>
             
             <!-- Alpha 值筛选 -->
             <div class="filter-section" v-if="metadata.alphas.length">
-                <h3>Alpha 值 ({{ metadata.alphas.length }})</h3>
-                <div class="filter-group">
-                    <label v-for="alpha in metadata.alphas" :key="alpha">
+                <div class="section-header">
+                    <h3>Alpha 值</h3>
+                    <span class="count-badge" v-if="filterCounts.alphas">
+                        {{ filterCounts.alphas }}/{{ metadata.alphas.length }}
+                    </span>
+                </div>
+                <div class="filter-group chips">
+                    <label 
+                        v-for="alpha in metadata.alphas" 
+                        :key="alpha"
+                        class="chip"
+                        :class="{ active: selectedFilters.alphas.has(alpha) }"
+                    >
                         <input 
                             type="checkbox"
                             v-model="selectedFilters.alphas"
                             :value="alpha"
                         >
-                        {{ alpha }}
+                        <span>{{ alpha }}</span>
                     </label>
                 </div>
             </div>
@@ -223,5 +274,90 @@ input[type="checkbox"] {
     color: #666;
     font-style: italic;
     text-align: center;
+}
+
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.clear-all-btn {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    color: #666;
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clear-all-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.count-badge {
+    font-size: 0.8rem;
+    color: #666;
+    background: #f0f0f0;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group.chips {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.8rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.chip.active {
+    background: #e7f1ff;
+    border-color: #4a90e2;
+    color: #4a90e2;
+}
+
+.chip input[type="checkbox"] {
+    display: none;
+}
+
+.checkbox-label {
+    margin-left: 0.5rem;
+}
+
+label:hover {
+    background-color: #f8f9fa;
+}
+
+.filter-section + .filter-section {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #eee;
 }
 </style>
