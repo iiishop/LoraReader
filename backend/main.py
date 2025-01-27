@@ -230,16 +230,25 @@ def upload_preview():
 
         file = request.files['file']
         lora_name = request.form.get('lora_name')
-        sub_path = request.form.get('path', '')  # 添加子路径支持
+        sub_path = request.form.get('path', '').strip('/')
 
         if not file or not lora_name:
             return jsonify({'error': 'Invalid parameters'}), 400
 
         config = load_config()
         base_path = config.get('lora_path', '')
+        
+        # 构造完整的目标目录路径
         current_path = os.path.join(base_path, sub_path) if sub_path else base_path
+        
+        # 确保目标目录存在且在base_path下
+        if not os.path.exists(current_path):
+            return jsonify({'error': 'Target directory not found'}), 404
+            
+        if not os.path.realpath(current_path).startswith(os.path.realpath(base_path)):
+            return jsonify({'error': 'Invalid path'}), 403
 
-        # 获取现有预览图数量
+        # 获取当前目录下现有的预览图数量
         files = os.listdir(current_path)
         preview_pattern = re.compile(f'^{re.escape(lora_name)}_\\d+\\.png$')
         existing_previews = [f for f in files if preview_pattern.match(f)]
@@ -248,11 +257,15 @@ def upload_preview():
         # 构造新文件名
         new_filename = f'{lora_name}_{next_number}.png'
         file_path = os.path.join(current_path, new_filename)
-
-        # 保存文件
+        
+        logger.info(f"Saving preview to: {file_path}")
         file.save(file_path)
 
-        return jsonify({'status': 'success', 'filename': new_filename})
+        return jsonify({
+            'status': 'success',
+            'filename': new_filename,
+            'path': sub_path
+        })
 
     except Exception as e:
         logger.error(f"Error uploading preview: {e}")

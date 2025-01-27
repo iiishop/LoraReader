@@ -215,6 +215,7 @@ watch(() => props.currentPath, (newPath) => {
         <LoraDetail 
             :lora="selectedLora"
             :show="showDetail"
+            :current-path="currentPath"
             @close="closeDetail"
         />
     </div>

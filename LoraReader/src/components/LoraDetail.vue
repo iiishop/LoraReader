@@ -9,6 +9,10 @@ const props = defineProps({
     show: {
         type: Boolean,
         default: false
+    },
+    currentPath: {  // 添加当前路径属性
+        type: String,
+        required: true
     }
 });
 
@@ -49,7 +53,7 @@ async function loadPreviews() {
     try {
         const params = new URLSearchParams({
             name: props.lora.base_name,
-            path: props.lora.path || '' // 添加路径参数
+            path: props.currentPath // 使用当前路径
         }).toString();
         
         const response = await fetch(`http://localhost:5000/previews?${params}`);
@@ -105,6 +109,7 @@ async function handleDrop(e) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('lora_name', props.lora.base_name);
+    formData.append('path', props.currentPath);  // 使用当前路径
 
     try {
         const xhr = new XMLHttpRequest();
