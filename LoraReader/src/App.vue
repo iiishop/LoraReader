@@ -3,11 +3,13 @@ import { defineAsyncComponent, ref, onMounted } from 'vue';
 const PathSelector = defineAsyncComponent(() => import('@/components/PathSelector.vue'));
 const FolderList = defineAsyncComponent(() => import('@/components/FolderList.vue'));
 const LoraViewer = defineAsyncComponent(() => import('@/components/LoraViewer.vue'));
+const FilterSidebar = defineAsyncComponent(() => import('@/components/FilterSidebar.vue'));
 
 const showSelector = ref(false);
 const selectorVisible = ref(false);
 const currentPath = ref('/');
 const isListExpanded = ref(true);
+const isFilterExpanded = ref(true);
 
 async function checkConfig() {
   const response = await fetch('http://localhost:5000/config');
@@ -43,6 +45,10 @@ function handleExpandChange(expanded) {
   isListExpanded.value = expanded;
 }
 
+function handleFilterExpandChange(expanded) {
+  isFilterExpanded.value = expanded;
+}
+
 onMounted(checkConfig);
 </script>
 
@@ -51,13 +57,29 @@ onMounted(checkConfig);
     <PathSelector v-if="showSelector" :class="{ visible: selectorVisible }" @confirm="handleConfirm" />
   </Transition>
   <div class="app-container">
-    <FolderList v-if="!showSelector" @path-change="handleFolderChange" @expand-change="handleExpandChange" />
+    <FolderList 
+      v-if="!showSelector" 
+      @path-change="handleFolderChange" 
+      @expand-change="handleExpandChange" 
+    />
     <div class="main-content" :class="{
       'collapsed': showSelector,
-      'list-collapsed': !isListExpanded
+      'list-collapsed': !isListExpanded,
+      'filter-collapsed': !isFilterExpanded
     }">
-      <LoraViewer v-if="!showSelector" :current-path="currentPath" :is-expanded="isListExpanded" />
+      <LoraViewer 
+        v-if="!showSelector"
+        :current-path="currentPath"
+        :is-expanded="isListExpanded"
+        :is-filter-expanded="isFilterExpanded"
+        @filter-expand-change="handleFilterExpandChange"
+      />
     </div>
+    <FilterSidebar 
+      v-if="!showSelector" 
+      :is-expanded="isFilterExpanded"
+      @expand-change="handleFilterExpandChange"
+    />
   </div>
 </template>
 
@@ -85,6 +107,7 @@ onMounted(checkConfig);
 .main-content {
   flex: 1;
   margin-left: 300px;
+  margin-right: 300px;
   padding: 2rem;
   transition: all 0.3s ease;
 }
@@ -95,5 +118,9 @@ onMounted(checkConfig);
 
 .main-content.list-collapsed {
   margin-left: 40px;
+}
+
+.main-content.filter-collapsed {
+  margin-right: 40px;
 }
 </style>

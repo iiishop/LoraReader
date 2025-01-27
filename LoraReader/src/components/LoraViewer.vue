@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue';
 import { gsap } from 'gsap';
 import { TransitionGroup } from 'vue';
+import LoraDetail from './LoraDetail.vue';
 
 const props = defineProps({
     currentPath: {
@@ -11,21 +12,68 @@ const props = defineProps({
     isExpanded: {  // 添加新的 prop
         type: Boolean,
         default: true
+    },
+    isFilterExpanded: {  // 新增属性
+        type: Boolean,
+        default: true
     }
 });
+
+const emit = defineEmits(['filter-expand-change']);
 
 const loraFiles = ref([]);
 const error = ref('');
 const loading = ref(false);
 const searchQuery = ref('');
 
-const filteredLoraFiles = computed(() => {
-    if (!searchQuery.value) return loraFiles.value;
-    const query = searchQuery.value.toLowerCase();
-    return loraFiles.value.filter(lora => 
-        lora.base_name.toLowerCase().includes(query)
-    );
+const activeFilters = ref({
+    versions: [],
+    dims: []
 });
+
+const filteredLoraFiles = computed(() => {
+    let result = loraFiles.value;
+    
+    // 应用搜索过滤
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        result = result.filter(lora => 
+            lora.base_name.toLowerCase().includes(query)
+        );
+    }
+    
+    // 应用版本筛选
+    if (activeFilters.value.versions.length > 0) {
+        result = result.filter(lora => 
+            activeFilters.value.versions.includes(lora.metadata?.ss_base_model_version)
+        );
+    }
+    
+    // 应用维度筛选
+    if (activeFilters.value.dims.length > 0) {
+        result = result.filter(lora => 
+            activeFilters.value.dims.includes(lora.metadata?.ss_network_dim)
+        );
+    }
+    
+    return result;
+});
+
+function handleFilterChange(filters) {
+    activeFilters.value = filters;
+}
+
+const selectedLora = ref(null);
+const showDetail = ref(false);
+
+function handleLoraClick(lora) {
+    selectedLora.value = lora;
+    showDetail.value = true;
+}
+
+function closeDetail() {
+    showDetail.value = false;
+}
 
 // GSAP 动画
 const onBeforeEnter = (el) => {
@@ -81,7 +129,10 @@ watch(() => props.currentPath, (newPath) => {
 </script>
 
 <template>
-    <div class="lora-viewer" :class="{ 'list-collapsed': !isExpanded }">
+    <div class="lora-viewer" :class="{ 
+        'list-collapsed': !isExpanded,
+        'filter-collapsed': !isFilterExpanded 
+    }">
         <div class="search-container">
             <input 
                 type="text" 
@@ -107,7 +158,8 @@ watch(() => props.currentPath, (newPath) => {
         >
             <div v-for="lora in filteredLoraFiles" 
                  :key="lora.name" 
-                 class="lora-card">
+                 class="lora-card"
+                 @click="handleLoraClick(lora)">
                 <div class="preview">
                     <img v-if="lora.has_preview" :src="`http://localhost:5000${lora.preview_path}`" :alt="lora.name" />
                     <div v-else class="no-preview">
@@ -115,7 +167,7 @@ watch(() => props.currentPath, (newPath) => {
                     </div>
                 </div>
                 <div class="info">
-                    <div class="name">{{ lora.base_name }}</div>
+                    <div class="name">{{ lora.name.replace('.safetensors', '') }}</div>
                     <div class="metadata" v-if="lora.metadata">
                         <span class="version-tag">
                             SD {{ lora.metadata.ss_base_model_version || 'Unknown' }}
@@ -137,6 +189,12 @@ watch(() => props.currentPath, (newPath) => {
                 </div>
             </div>
         </TransitionGroup>
+        
+        <LoraDetail 
+            :lora="selectedLora"
+            :show="showDetail"
+            @close="closeDetail"
+        />
     </div>
 </template>
 
@@ -161,6 +219,7 @@ watch(() => props.currentPath, (newPath) => {
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
     will-change: transform, opacity;
+    cursor: pointer;
 }
 
 .lora-card:hover {
@@ -256,18 +315,27 @@ watch(() => props.currentPath, (newPath) => {
     position: fixed;
     top: 0;
     left: 300px;  /* 与侧边栏宽度对应 */
-    right: 0;
+    right: 300px;  
     z-index: 100;
     background: white;
     padding: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     justify-content: center;
-    transition: left 0.3s ease;  /* 添加过渡效果 */
+    transition: all 0.3s ease;  /* 添加过渡效果 */
 }
 
 .list-collapsed .search-container {
     left: 40px;  /* 当侧边栏收起时调整位置 */
+}
+
+.filter-collapsed .search-container {
+    right: 40px;
+}
+
+.list-collapsed.filter-collapsed .search-container {
+    left: 40px;
+    right: 40px;
 }
 
 .search-input {
