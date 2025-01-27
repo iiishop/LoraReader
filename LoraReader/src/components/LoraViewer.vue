@@ -16,6 +16,14 @@ const props = defineProps({
     isFilterExpanded: {  // 新增属性
         type: Boolean,
         default: true
+    },
+    activeFilters: {  // 新增
+        type: Object,
+        default: () => ({
+            versions: [],
+            dims: [],
+            alphas: []
+        })
     }
 });
 
@@ -26,12 +34,8 @@ const error = ref('');
 const loading = ref(false);
 const searchQuery = ref('');
 
-const activeFilters = ref({
-    versions: [],
-    dims: []
-});
-
 const filteredLoraFiles = computed(() => {
+    console.log('开始筛选，当前文件数:', loraFiles.value.length);
     let result = loraFiles.value;
     
     // 应用搜索过滤
@@ -42,26 +46,43 @@ const filteredLoraFiles = computed(() => {
         );
     }
     
-    // 应用版本筛选
-    if (activeFilters.value.versions.length > 0) {
-        result = result.filter(lora => 
-            activeFilters.value.versions.includes(lora.metadata?.ss_base_model_version)
-        );
+    // 获取筛选条件
+    const filters = {
+        versions: props.activeFilters.versions || [],
+        dims: props.activeFilters.dims || [],
+        alphas: props.activeFilters.alphas || []
+    };
+
+    // 版本筛选
+    if (filters.versions.length > 0) {
+        result = result.filter(lora => {
+            const version = lora.metadata?.ss_base_model_version;
+            console.log('检查版本:', version, '是否在', filters.versions);
+            return filters.versions.includes(version);
+        });
     }
-    
-    // 应用维度筛选
-    if (activeFilters.value.dims.length > 0) {
-        result = result.filter(lora => 
-            activeFilters.value.dims.includes(lora.metadata?.ss_network_dim)
-        );
+
+    // 维度筛选
+    if (filters.dims.length > 0) {
+        result = result.filter(lora => {
+            const dim = lora.metadata?.ss_network_dim;
+            console.log('检查维度:', dim, '是否在', filters.dims);
+            return filters.dims.includes(dim);
+        });
     }
-    
+
+    // Alpha值筛选
+    if (filters.alphas.length > 0) {
+        result = result.filter(lora => {
+            const alpha = lora.metadata?.ss_network_alpha;
+            console.log('检查Alpha:', alpha, '是否在', filters.alphas);
+            return filters.alphas.includes(alpha);
+        });
+    }
+
+    console.log('筛选后文件数:', result.length);
     return result;
 });
-
-function handleFilterChange(filters) {
-    activeFilters.value = filters;
-}
 
 const selectedLora = ref(null);
 const showDetail = ref(false);

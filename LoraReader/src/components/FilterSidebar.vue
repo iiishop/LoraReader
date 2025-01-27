@@ -50,23 +50,32 @@ const selectedFilters = ref({
     alphas: new Set()
 });
 
-// 处理筛选条件变化
-function toggleFilter(type, value) {
-    if (selectedFilters.value[type].has(value)) {
-        selectedFilters.value[type].delete(value);
-    } else {
-        selectedFilters.value[type].add(value);
-    }
-    emitFilterChange();
-}
-
+// 修改 emitFilterChange 函数添加更多日志
 function emitFilterChange() {
-    emit('filter-change', {
+    const filters = {
         versions: Array.from(selectedFilters.value.versions),
         dims: Array.from(selectedFilters.value.dims),
         alphas: Array.from(selectedFilters.value.alphas)
-    });
+    };
+    console.log('Emitting filters from FilterSidebar:', filters);
+    emit('filter-change', filters);
 }
+
+// 添加 watch 以监控 loraFiles 变化时清空选择
+watch(() => props.loraFiles, () => {
+    selectedFilters.value = {
+        versions: new Set(),
+        dims: new Set(),
+        alphas: new Set()
+    };
+    emitFilterChange();
+}, { deep: true });
+
+// 移除 toggleFilter 函数，改用 watch 监听 selectedFilters
+watch(selectedFilters, (newVal) => {
+    emitFilterChange();
+}, { deep: true });
+
 </script>
 
 <template>
@@ -85,8 +94,8 @@ function emitFilterChange() {
                     <label v-for="version in metadata.versions" :key="version">
                         <input 
                             type="checkbox"
-                            :checked="selectedFilters.versions.has(version)"
-                            @change="toggleFilter('versions', version)"
+                            v-model="selectedFilters.versions"
+                            :value="version"
                         >
                         {{ version }}
                     </label>
@@ -100,8 +109,8 @@ function emitFilterChange() {
                     <label v-for="dim in metadata.dims" :key="dim">
                         <input 
                             type="checkbox"
-                            :checked="selectedFilters.dims.has(dim)"
-                            @change="toggleFilter('dims', dim)"
+                            v-model="selectedFilters.dims"
+                            :value="dim"
                         >
                         {{ dim }}
                     </label>
@@ -115,8 +124,8 @@ function emitFilterChange() {
                     <label v-for="alpha in metadata.alphas" :key="alpha">
                         <input 
                             type="checkbox"
-                            :checked="selectedFilters.alphas.has(alpha)"
-                            @change="toggleFilter('alphas', alpha)"
+                            v-model="selectedFilters.alphas"
+                            :value="alpha"
                         >
                         {{ alpha }}
                     </label>

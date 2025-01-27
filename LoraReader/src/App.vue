@@ -11,6 +11,11 @@ const currentPath = ref('/');
 const isListExpanded = ref(true);
 const isFilterExpanded = ref(true);
 const loraFiles = ref([]);
+const activeFilters = ref({
+    versions: [],
+    dims: [],
+    alphas: []
+});
 
 async function checkConfig() {
   const response = await fetch('http://localhost:5000/config');
@@ -53,6 +58,11 @@ function handleLoraFilesChange(files) {
     loraFiles.value = files;
 }
 
+function handleFilterChange(filters) {
+    console.log('Received filters in App:', filters);
+    activeFilters.value = filters;
+}
+
 onMounted(checkConfig);
 </script>
 
@@ -76,6 +86,7 @@ onMounted(checkConfig);
         :current-path="currentPath"
         :is-expanded="isListExpanded"
         :is-filter-expanded="isFilterExpanded"
+        :active-filters="activeFilters"
         @filter-expand-change="handleFilterExpandChange"
         @lora-files-change="handleLoraFilesChange"
       />
@@ -85,6 +96,7 @@ onMounted(checkConfig);
       :is-expanded="isFilterExpanded"
       :lora-files="loraFiles"
       @expand-change="handleFilterExpandChange"
+      @filter-change="handleFilterChange"
     />
   </div>
 </template>
