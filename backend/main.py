@@ -196,10 +196,73 @@ def get_preview():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/previews', methods=['GET'])
+def get_previews():
+    try:
+        config = load_config()
+        base_path = config.get('lora_path', '')
+        lora_name = request.args.get('name', '')
+        sub_path = request.args.get('path', '')
+
+        if not all([base_path, lora_name]):
+            return jsonify({'error': 'Invalid parameters'}), 400
+
+        current_path = os.path.join(base_path, sub_path) if sub_path else base_path
+        
+        # 获取当前目录下所有文件
+        files = os.listdir(current_path)
+        
+        # 找出所有匹配的预览图
+        preview_pattern = re.compile(f'^{re.escape(lora_name)}(_\\d+)?\\.png$')
+        previews = [f'/preview?path={sub_path}&file={f}' for f in files if preview_pattern.match(f)]
+        
+        return jsonify({'previews': sorted(previews)})
+
+    except Exception as e:
+        logger.error(f"Error getting previews: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/upload-preview', methods=['POST'])
+def upload_preview():
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+        lora_name = request.form.get('lora_name')
+        sub_path = request.form.get('path', '')  # 添加子路径支持
+
+        if not file or not lora_name:
+            return jsonify({'error': 'Invalid parameters'}), 400
+
+        config = load_config()
+        base_path = config.get('lora_path', '')
+        current_path = os.path.join(base_path, sub_path) if sub_path else base_path
+
+        # 获取现有预览图数量
+        files = os.listdir(current_path)
+        preview_pattern = re.compile(f'^{re.escape(lora_name)}_\\d+\\.png$')
+        existing_previews = [f for f in files if preview_pattern.match(f)]
+        next_number = len(existing_previews) + 1
+
+        # 构造新文件名
+        new_filename = f'{lora_name}_{next_number}.png'
+        file_path = os.path.join(current_path, new_filename)
+
+        # 保存文件
+        file.save(file_path)
+
+        return jsonify({'status': 'success', 'filename': new_filename})
+
+    except Exception as e:
+        logger.error(f"Error uploading preview: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     try:
-        logger.info("Starting Flask server...")
-        app.run(debug=True, port=5000)
-    except Exception as e:
+        logger.info("Starting Flask server...")        
+        app.run(debug=True, port=5000)    
+    except Exception as e:        
         logger.error(f"Server error: {e}")
         input("Press Enter to exit...")
