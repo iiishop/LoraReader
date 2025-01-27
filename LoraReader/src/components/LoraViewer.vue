@@ -7,6 +7,10 @@ const props = defineProps({
     currentPath: {
         type: String,
         default: '/'
+    },
+    isExpanded: {  // 添加新的 prop
+        type: Boolean,
+        default: true
     }
 });
 
@@ -77,7 +81,7 @@ watch(() => props.currentPath, (newPath) => {
 </script>
 
 <template>
-    <div class="lora-viewer">
+    <div class="lora-viewer" :class="{ 'list-collapsed': !isExpanded }">
         <div class="search-container">
             <input 
                 type="text" 
@@ -125,9 +129,8 @@ watch(() => props.currentPath, (newPath) => {
 
 <style scoped>
 .lora-viewer {
-    padding: 1rem;
+    padding-top: 4rem;  /* 为固定定位的搜索框留出空间 */
     overflow-y: auto;
-    position: relative;
 }
 
 .lora-grid {
@@ -205,15 +208,21 @@ watch(() => props.currentPath, (newPath) => {
 }
 
 .search-container {
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 10;
+    left: 300px;  /* 与侧边栏宽度对应 */
+    right: 0;
+    z-index: 100;
     background: white;
     padding: 1rem;
-    margin: -1rem -1rem 1rem -1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     justify-content: center;
+    transition: left 0.3s ease;  /* 添加过渡效果 */
+}
+
+.list-collapsed .search-container {
+    left: 40px;  /* 当侧边栏收起时调整位置 */
 }
 
 .search-input {
