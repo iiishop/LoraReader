@@ -6,6 +6,7 @@ import sys
 import os
 import json
 import re
+from safetensors import safe_open
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -103,6 +104,21 @@ def get_folders():
         return jsonify({'error': str(e)}), 500
 
 
+def get_lora_metadata(file_path):
+    try:
+        with safe_open(file_path, framework="pt") as f:
+            metadata = f.metadata()
+            return {
+                'ss_base_model_version': metadata.get('ss_base_model_version', 'Unknown'),
+                'ss_network_module': metadata.get('ss_network_module', ''),
+                'ss_network_dim': metadata.get('ss_network_dim', ''),
+                'ss_network_alpha': metadata.get('ss_network_alpha', '')
+            }
+    except Exception as e:
+        logger.error(f"Error reading safetensors metadata: {e}")
+        return {}
+
+
 @app.route('/lora-files', methods=['GET'])
 def get_lora_files():
     try:
@@ -123,10 +139,13 @@ def get_lora_files():
         lora_files = []
         files = os.listdir(current_path)
         
-        # 查找所有 .safetensors 文件
         for file in files:
             if file.endswith('.safetensors'):
-                base_name = file[:-11]  # 移除 .safetensors
+                base_name = file[:-11]
+                full_path = os.path.join(current_path, file)
+                
+                # 获取 metadata
+                metadata = get_lora_metadata(full_path)
                 
                 # 检查相关文件
                 preview_file = next((f for f in files if f.startswith(base_name) and f.endswith('.png')), None)
@@ -137,7 +156,8 @@ def get_lora_files():
                     'base_name': base_name,
                     'has_preview': bool(preview_file),
                     'has_config': bool(config_file),
-                    'preview_path': f'/preview?path={sub_path}&file={preview_file}' if preview_file else None
+                    'preview_path': f'/preview?path={sub_path}&file={preview_file}' if preview_file else None,
+                    'metadata': metadata
                 }
                 lora_files.append(lora_info)
         
@@ -149,6 +169,7 @@ def get_lora_files():
     except Exception as e:
         logger.error(f"Error scanning lora files: {e}")
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/preview', methods=['GET'])
 def get_preview():

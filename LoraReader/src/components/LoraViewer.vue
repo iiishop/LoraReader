@@ -116,6 +116,19 @@ watch(() => props.currentPath, (newPath) => {
                 </div>
                 <div class="info">
                     <div class="name">{{ lora.base_name }}</div>
+                    <div class="metadata" v-if="lora.metadata">
+                        <span class="version-tag">
+                            SD {{ lora.metadata.ss_base_model_version || 'Unknown' }}
+                        </span>
+                        <div class="metadata-details" v-if="lora.metadata.ss_network_dim">
+                            <span class="detail-tag">
+                                Dim: {{ lora.metadata.ss_network_dim }}
+                            </span>
+                            <span class="detail-tag" v-if="lora.metadata.ss_network_alpha">
+                                Alpha: {{ lora.metadata.ss_network_alpha }}
+                            </span>
+                        </div>
+                    </div>
                     <div class="badges">
                         <span class="badge" title="配置文件">
                             {{ lora.has_config ? '📄' : '❌' }}
@@ -176,12 +189,44 @@ watch(() => props.currentPath, (newPath) => {
 
 .info {
     padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
 }
 
 .name {
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
     word-break: break-all;
+}
+
+.metadata {
+    margin: 0.5rem 0;
+    font-size: 0.8rem;
+}
+
+.version-tag {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.metadata-details {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.3rem;
+}
+
+.detail-tag {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    color: #666;
+    font-size: 0.75rem;
 }
 
 .badges {
