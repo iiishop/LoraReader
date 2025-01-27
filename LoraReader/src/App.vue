@@ -28,7 +28,7 @@ async function handleConfirm(path) {
     },
     body: JSON.stringify({ lora_path: path })
   });
-  
+
   selectorVisible.value = false;
   setTimeout(() => {
     showSelector.value = false;
@@ -48,26 +48,15 @@ onMounted(checkConfig);
 
 <template>
   <Transition name="slide">
-    <PathSelector 
-      v-if="showSelector" 
-      :class="{ visible: selectorVisible }" 
-      @confirm="handleConfirm"
-    />
+    <PathSelector v-if="showSelector" :class="{ visible: selectorVisible }" @confirm="handleConfirm" />
   </Transition>
   <div class="app-container">
-    <FolderList 
-      v-if="!showSelector" 
-      @path-change="handleFolderChange"
-      @expand-change="handleExpandChange"
-    />
-    <div class="main-content" :class="{ 
+    <FolderList v-if="!showSelector" @path-change="handleFolderChange" @expand-change="handleExpandChange" />
+    <div class="main-content" :class="{
       'collapsed': showSelector,
-      'list-collapsed': !isListExpanded 
+      'list-collapsed': !isListExpanded
     }">
-      <LoraViewer 
-        v-if="!showSelector"
-        :current-path="currentPath"
-      />
+      <LoraViewer v-if="!showSelector" :current-path="currentPath" :is-expanded="isListExpanded" />
     </div>
   </div>
 </template>

@@ -125,32 +125,34 @@ def get_lora_files():
         config = load_config()
         base_path = config.get('lora_path', '')
         sub_path = request.args.get('path', '').strip('/')  # 修改这里
-        
+
         if not base_path or not os.path.exists(base_path):
             return jsonify({'error': 'Invalid base path'}), 404
-            
+
         current_path = os.path.normpath(os.path.join(base_path, sub_path))
         if not os.path.exists(current_path):
             return jsonify({'error': 'Path not found'}), 404
-            
+
         if not os.path.realpath(current_path).startswith(os.path.realpath(base_path)):
             return jsonify({'error': 'Invalid path'}), 403
-        
+
         lora_files = []
         files = os.listdir(current_path)
-        
+
         for file in files:
             if file.endswith('.safetensors'):
                 base_name = file[:-11]
                 full_path = os.path.join(current_path, file)
-                
+
                 # 获取 metadata
                 metadata = get_lora_metadata(full_path)
-                
+
                 # 检查相关文件
-                preview_file = next((f for f in files if f.startswith(base_name) and f.endswith('.png')), None)
-                config_file = next((f for f in files if f.startswith(base_name) and f.endswith('.json')), None)
-                
+                preview_file = next((f for f in files if f.startswith(
+                    base_name) and f.endswith('.png')), None)
+                config_file = next((f for f in files if f.startswith(
+                    base_name) and f.endswith('.json')), None)
+
                 lora_info = {
                     'name': file,
                     'base_name': base_name,
@@ -160,12 +162,12 @@ def get_lora_files():
                     'metadata': metadata
                 }
                 lora_files.append(lora_info)
-        
+
         return jsonify({
             'lora_files': lora_files,
             'current_path': sub_path or '/'
         })
-        
+
     except Exception as e:
         logger.error(f"Error scanning lora files: {e}")
         return jsonify({'error': str(e)}), 500
@@ -178,17 +180,17 @@ def get_preview():
         base_path = config.get('lora_path', '')
         sub_path = request.args.get('path', '')
         file_name = request.args.get('file', '')
-        
+
         if not all([base_path, file_name]):
             return jsonify({'error': 'Invalid parameters'}), 400
-            
+
         file_path = os.path.join(base_path, sub_path, file_name)
-        
+
         if not os.path.exists(file_path):
             return jsonify({'error': 'File not found'}), 404
-            
+
         return send_file(file_path, mimetype='image/png')
-        
+
     except Exception as e:
         logger.error(f"Error sending preview: {e}")
         return jsonify({'error': str(e)}), 500
