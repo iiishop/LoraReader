@@ -223,6 +223,8 @@ def get_previews():
         config = load_config()
         base_path = config.get('lora_path', '')
         lora_name = request.args.get('name', '')
+        if lora_name.endswith('.'):
+            lora_name = lora_name[:-1]
         sub_path = request.args.get('path', '')
 
         if not all([base_path, lora_name]):
@@ -251,6 +253,9 @@ def upload_preview():
 
         file = request.files['file']
         lora_name = request.form.get('lora_name')
+        #如果最后是.则去掉
+        if lora_name.endswith('.'):
+            lora_name = lora_name[:-1]
         sub_path = request.form.get('path', '').strip('/')
 
         if not file or not lora_name:
@@ -269,11 +274,22 @@ def upload_preview():
         if not os.path.realpath(current_path).startswith(os.path.realpath(base_path)):
             return jsonify({'error': 'Invalid path'}), 403
 
-        # 获取当前目录下现有的预览图数量
+        # 获取当前目录下所有预览图数量并找到最大编号
         files = os.listdir(current_path)
         preview_pattern = re.compile(f'^{re.escape(lora_name)}_\\d+\\.png$')
-        existing_previews = [f for f in files if preview_pattern.match(f)]
-        next_number = len(existing_previews) + 1
+        existing_previews = []
+        max_number = 0
+        
+        # 遍历所有文件找到现有的预览图编号
+        for f in files:
+            match = re.match(f'^{re.escape(lora_name)}_(\d+)\\.png$', f)
+            if match:
+                num = int(match.group(1))
+                max_number = max(max_number, num)
+                existing_previews.append(f)
+
+        # 确定下一个编号
+        next_number = max_number + 1 if existing_previews else 1
 
         # 构造新文件名
         new_filename = f'{lora_name}_{next_number}.png'
@@ -333,6 +349,75 @@ def update_lora_config():
 
     except Exception as e:
         logger.error(f"Error updating lora config: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/swap-preview', methods=['POST'])
+def swap_preview():
+    try:
+        data = request.json
+        base_path = load_config().get('lora_path', '')
+        sub_path = data.get('path', '').strip('/')
+        lora_name = data.get('lora_name', '')
+        if lora_name.endswith('.'):
+            lora_name = lora_name[:-1]
+        preview_index = data.get('preview_index', 0)
+
+        logger.info(f"Swapping preview - Path: {sub_path}, Lora: {lora_name}, Index: {preview_index}")
+
+        if not all([base_path, lora_name]):
+            return jsonify({'error': 'Invalid parameters'}), 400
+
+        current_path = os.path.join(base_path, sub_path) if sub_path else base_path
+        
+        if not os.path.exists(current_path):
+            logger.error(f"Directory not found: {current_path}")
+            return jsonify({'error': 'Directory not found'}), 404
+
+        # 获取所有预览图
+        files = os.listdir(current_path)
+        preview_pattern = re.compile(f'^{re.escape(lora_name)}(\\.png|_\\d+\\.png)$')
+        preview_files = [f for f in files if preview_pattern.match(f)]
+        
+        # 自定义排序函数
+        def sort_preview_files(filename):
+            if filename == f"{lora_name}.png":  # 主预览图
+                return -1
+            match = re.search(r'_(\d+)\.png$', filename)
+            return int(match.group(1)) if match else 0
+
+        preview_files = sorted(preview_files, key=sort_preview_files)
+        logger.info(f"Found and sorted preview files: {preview_files}")
+        
+        if not preview_files:
+            return jsonify({'error': 'No preview files found'}), 404
+        
+        if preview_index >= len(preview_files):
+            logger.error(f"Invalid preview index: {preview_index}, total files: {len(preview_files)}")
+            return jsonify({'error': f'Invalid preview index: {preview_index}'}), 400
+
+        # 获取主预览图和目标预览图的路径
+        main_preview = preview_files[0]
+        target_preview = preview_files[preview_index]
+        
+        logger.info(f"Swapping {main_preview} with {target_preview}")
+        
+        if main_preview == target_preview:
+            return jsonify({'status': 'success', 'message': 'Same file, no swap needed'})
+        
+        main_preview_path = os.path.join(current_path, main_preview)
+        target_preview_path = os.path.join(current_path, target_preview)
+        temp_preview_path = os.path.join(current_path, f'{lora_name}_temp.png')
+        
+        # 执行文件交换
+        os.rename(main_preview_path, temp_preview_path)
+        os.rename(target_preview_path, main_preview_path)
+        os.rename(temp_preview_path, target_preview_path)
+
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        logger.error(f"Error swapping preview: {e}")
         return jsonify({'error': str(e)}), 500
 
 

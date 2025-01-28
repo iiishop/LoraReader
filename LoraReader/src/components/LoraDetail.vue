@@ -72,6 +72,34 @@ async function loadPreviews() {
     }
 }
 
+async function setAsMainPreview() {
+    try {
+        const response = await fetch('http://localhost:5000/swap-preview', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                path: props.currentPath,
+                lora_name: props.lora.base_name,
+                preview_index: currentPreviewIndex.value
+            })
+        });
+
+        if (response.ok) {
+            // 重新加载预览图列表
+            await loadPreviews();
+            // 重置索引到第一张
+            currentPreviewIndex.value = 0;
+        } else {
+            alert('设置主预览图失败');
+        }
+    } catch (error) {
+        console.error('设置主预览图失败:', error);
+        alert('设置主预览图失败');
+    }
+}
+
 function handleOverlayClick(e) {
     if (e.target.classList.contains('overlay')) {
         emit('close');
@@ -251,6 +279,15 @@ watch(() => props.show, (newVal) => {
                                             @mouseleave="handleButtonHover(false)">
                                         <span class="btn-content">+</span>
                                         <span class="btn-tooltip">添加预览图</span>
+                                    </button>
+                                    <!-- 添加设为主预览图按钮 -->
+                                    <button v-if="currentPreviewIndex > 0"
+                                            @click="setAsMainPreview"
+                                            class="set-main-btn"
+                                            @mouseenter="handleButtonHover(true)"
+                                            @mouseleave="handleButtonHover(false)">
+                                        <span class="btn-content">★</span>
+                                        <span class="btn-tooltip">设为主预览图</span>
                                     </button>
                                     <button @click="nextPreview" 
                                             :disabled="currentPreviewIndex === previews.length - 1"
@@ -507,7 +544,7 @@ watch(() => props.show, (newVal) => {
     padding: 1rem 0;
 }
 
-.nav-btn, .add-btn {
+.nav-btn, .add-btn, .set-main-btn {
     position: relative;
     border: none;
     padding: 0.8rem 1.2rem;
@@ -530,14 +567,22 @@ watch(() => props.show, (newVal) => {
     min-width: 3rem;
 }
 
+.set-main-btn {
+    background: linear-gradient(135deg, #ffd700, #ffa000);
+    color: white;
+    min-width: 3rem;
+}
+
 .nav-btn:hover:not(:disabled),
-.add-btn:hover {
+.add-btn:hover,
+.set-main-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .nav-btn:active:not(:disabled),
-.add-btn:active {
+.add-btn:active,
+.set-main-btn:active {
     transform: translateY(0);
 }
 
@@ -564,7 +609,8 @@ watch(() => props.show, (newVal) => {
 }
 
 .nav-btn:hover .btn-tooltip,
-.add-btn:hover .btn-tooltip {
+.add-btn:hover .btn-tooltip,
+.set-main-btn:hover .btn-tooltip {
     opacity: 1;
 }
 
