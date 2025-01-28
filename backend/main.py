@@ -159,7 +159,6 @@ def get_lora_files():
                 base_name = file[:-11]
                 full_path = os.path.join(current_path, file)
 
-                # 获取 metadata
                 metadata = get_lora_metadata(full_path)
 
                 # 检查相关文件
@@ -168,7 +167,7 @@ def get_lora_files():
                 config_file = next((f for f in files if f.startswith(
                     base_name) and f.endswith('.json')), None)
 
-                # 获取配置文件内容
+                # 获取或创建空的配置数据
                 config_data = {}
                 if config_file:
                     config_path = os.path.join(current_path, config_file)
@@ -181,7 +180,7 @@ def get_lora_files():
                     'has_config': bool(config_file),
                     'preview_path': f'/preview?path={sub_path}&file={preview_file}' if preview_file else None,
                     'metadata': metadata,
-                    'config': config_data  # 添加配置数据
+                    'config': config_data  # 即使没有配置文件也返回空对象
                 }
                 lora_files.append(lora_info)
 
@@ -313,17 +312,24 @@ def update_lora_config():
 
         # 准备新的配置数据
         config_data = {
+            'description': config.get('description', ''),
+            'sd version': 'SDXL',  # 添加默认的SD版本信息
             'activation text': config.get('activation_text', ''),
             'preferred weight': config.get('preferred_weight', 0),
-            'notes': config.get('notes', ''),
-            'description': config.get('description', '')
+            'notes': config.get('notes', '')
         }
+
+        # 如果目录不存在则创建
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
         # 写入文件
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=4, ensure_ascii=False)
 
-        return jsonify({'status': 'success'})
+        return jsonify({
+            'status': 'success',
+            'has_config': True  # 返回更新后的状态
+        })
 
     except Exception as e:
         logger.error(f"Error updating lora config: {e}")

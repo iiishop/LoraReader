@@ -175,8 +175,10 @@ async function saveConfig() {
         });
 
         if (response.ok) {
-            // 更新本地数据
+            const result = await response.json();
+            // 更新本地状态
             props.lora.config = { ...editedConfig.value };
+            props.lora.has_config = result.has_config; // 添加这行
             isEditing.value = false;
         } else {
             alert('保存失败');
@@ -294,14 +296,14 @@ watch(() => props.show, (newVal) => {
                             </div>
                         </div>
 
-                        <!-- 添加配置信息显示 -->
-                        <div v-if="lora.has_config" class="config-section">
+                        <!-- 修改配置信息显示部分 -->
+                        <div class="config-section">
                             <div class="config-header">
                                 <h3>配置信息</h3>
                                 <button v-if="!isEditing" 
                                         @click="startEditing" 
                                         class="edit-btn">
-                                    编辑
+                                    {{ lora.has_config ? '编辑' : '创建配置' }}
                                 </button>
                                 <button v-else 
                                         @click="saveConfig" 
@@ -340,40 +342,45 @@ watch(() => props.show, (newVal) => {
                                 </div>
                             </template>
                             <template v-else>
-                                <!-- 原有的只读显示部分 -->
-                                <div v-if="lora.config.activation_text" class="config-item">
-                                    <div class="config-header">
-                                        <h3 class="config-title">触发词</h3>
-                                        <button @click="copyActivationText(lora.config.activation_text)" 
-                                                class="copy-btn"
-                                                :class="{ 'success': showCopySuccess }">
-                                            {{ showCopySuccess ? '已复制!' : '复制' }}
-                                        </button>
+                                <template v-if="lora.has_config">
+                                    <!-- ...existing config display... -->
+                                    <div v-if="lora.config.activation_text" class="config-item">
+                                        <div class="config-header">
+                                            <h3 class="config-title">触发词</h3>
+                                            <button @click="copyActivationText(lora.config.activation_text)" 
+                                                    class="copy-btn"
+                                                    :class="{ 'success': showCopySuccess }">
+                                                {{ showCopySuccess ? '已复制!' : '复制' }}
+                                            </button>
+                                        </div>
+                                        <div class="config-content activation-text">
+                                            {{ lora.config.activation_text }}
+                                        </div>
                                     </div>
-                                    <div class="config-content activation-text">
-                                        {{ lora.config.activation_text }}
+                                    
+                                    <div v-if="lora.config.preferred_weight" class="config-item">
+                                        <h3 class="config-title">推荐权重</h3>
+                                        <div class="config-content weight">
+                                            {{ lora.config.preferred_weight }}
+                                        </div>
                                     </div>
-                                </div>
-                                
-                                <div v-if="lora.config.preferred_weight" class="config-item">
-                                    <h3 class="config-title">推荐权重</h3>
-                                    <div class="config-content weight">
-                                        {{ lora.config.preferred_weight }}
+                                    
+                                    <div v-if="lora.config.notes" class="config-item">
+                                        <h3 class="config-title">备注</h3>
+                                        <div class="config-content notes">
+                                            <pre>{{ lora.config.notes }}</pre>
+                                        </div>
                                     </div>
-                                </div>
-                                
-                                <div v-if="lora.config.notes" class="config-item">
-                                    <h3 class="config-title">备注</h3>
-                                    <div class="config-content notes">
-                                        <pre>{{ lora.config.notes }}</pre>
-                                    </div>
-                                </div>
 
-                                <div v-if="lora.config.description" class="config-item">
-                                    <h3 class="config-title">描述</h3>
-                                    <div class="config-content description">
-                                        {{ lora.config.description }}
+                                    <div v-if="lora.config.description" class="config-item">
+                                        <h3 class="config-title">描述</h3>
+                                        <div class="config-content description">
+                                            {{ lora.config.description }}
+                                        </div>
                                     </div>
+                                </template>
+                                <div v-else class="no-config-message">
+                                    尚未创建配置文件，点击"创建配置"来添加触发词等信息
                                 </div>
                             </template>
                         </div>
@@ -798,5 +805,14 @@ watch(() => props.show, (newVal) => {
     background: #4caf50;
     color: white;
     border-color: #4caf50;
+}
+
+.no-config-message {
+    text-align: center;
+    color: #666;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-style: italic;
 }
 </style>
