@@ -145,6 +145,10 @@ async function loadLoraFiles(path) {
     }
 }
 
+const refreshLoraFiles = () => {
+    loadLoraFiles(props.currentPath);
+};
+
 watch(() => props.currentPath, (newPath) => {
     loadLoraFiles(newPath);
 }, { immediate: true });
@@ -218,6 +222,7 @@ watch(() => props.currentPath, (newPath) => {
             :current-path="currentPath"
             @close="closeDetail"
         />
+        <button class="refresh-btn" @click="refreshLoraFiles">🔄</button>
     </div>
 </template>
 
@@ -376,5 +381,31 @@ watch(() => props.currentPath, (newPath) => {
 .search-input:focus {
     border-color: #4a90e2;
     box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.refresh-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    z-index: 1000; /* 确保按钮浮动在最上层 */
+}
+
+.refresh-btn:hover {
+    background-color: #45a049;
+    transform: scale(1.1);
+}
+
+.refresh-btn:active {
+    transform: scale(0.9);
 }
 </style>
