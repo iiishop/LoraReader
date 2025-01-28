@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 
 const props = defineProps({
-    imagePath: {
+    imageUrl: {
         type: String,
         required: true
     },
@@ -12,91 +12,69 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close-image-detail']);
+
 const positivePrompt = ref('');
 const negativePrompt = ref('');
+const errorMessage = ref('');
 
-watch(() => props.show, (newVal) => {
-    if (newVal) {
-        fetchImageDetails();
+watch(() => props.imageUrl, async (newUrl) => {
+    if (newUrl) {
+        await parseImage(newUrl);
     }
-});
+}, { immediate: true });
 
-function closeImageDetail() {
-    emit('close');
-    positivePrompt.value = '';
-    negativePrompt.value = '';
-}
-
-async function fetchImageDetails() {
+async function parseImage(url) {
     try {
-        const response = await fetch(props.imagePath);
+        const response = await fetch(url);
         const blob = await response.blob();
-        const metadata = await extractMetadata(blob);
-        parsePrompts(metadata);
+        const text = await blob.text();
+
+        const positiveMatch = text.match(/HtEXparameters:([\s\S]*?)Negative prompt:/);
+        const negativeMatch = text.match(/Negative prompt:([\s\S]*?)Steps:/);
+
+        if (positiveMatch && negativeMatch) {
+            positivePrompt.value = positiveMatch[1].trim();
+            negativePrompt.value = negativeMatch[1].trim();
+        } else {
+            const positiveJsonMatch = text.match(/"positive":\s*"([^"]*)"/);
+            const negativeJsonMatch = text.match(/"negative":\s*"([^"]*)"/);
+
+            if (positiveJsonMatch && negativeJsonMatch) {
+                positivePrompt.value = positiveJsonMatch[1].trim();
+                negativePrompt.value = negativeJsonMatch[1].trim();
+            } else {
+                errorMessage.value = '无法解析图片中的提示信息';
+            }
+        }
     } catch (error) {
-        console.error('获取图片详情失败:', error);
-        alert('获取图片详情失败');
+        errorMessage.value = '解析图片失败';
+        console.error('Error parsing image:', error);
     }
 }
 
-async function extractMetadata(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const text = reader.result;
-            const match = text.match(/<HtEXparameters>([\s\S]*?)<\/HtEXparameters>/);
-            if (match) {
-                resolve(match[1]);
-            } else {
-                // 备选检查
-                const positiveMatch = text.match(/"positive":\s*"(.*?)"/);
-                const negativeMatch = text.match(/"negative":\s*"(.*?)"/);
-                if (positiveMatch || negativeMatch) {
-                    resolve(text);
-                } else {
-                    reject('未找到 HtEXparameters 或提示词');
-                }
-            }
-        };
-        reader.onerror = reject;
-        reader.readAsText(blob);
-    });
+function handleClose() {
+    emit('close-image-detail');
 }
 
-function parsePrompts(metadata) {
-    const positiveMatch = metadata.match(/(Positive prompt:|positive":)([\s\S]*?)(Negative prompt:|negative":|Steps:)/);
-    const negativeMatch = metadata.match(/(Negative prompt:|negative":)([\s\S]*?)(Steps:|$)/);
-
-    if (positiveMatch && negativeMatch) {
-        positivePrompt.value = positiveMatch[2].trim();
-        negativePrompt.value = negativeMatch[2].trim();
-    } else {
-        // 再次检查 JSON 风格
-        const positiveJson = metadata.match(/"positive":\s*"(.*?)"/);
-        const negativeJson = metadata.match(/"negative":\s*"(.*?)"/);
-        if (positiveJson && negativeJson) {
-            positivePrompt.value = positiveJson[1].trim();
-            negativePrompt.value = negativeJson[1].trim();
-        } else {
-            alert('未找到正向或负向提示词');
-        }
+function handleOverlayClick(e) {
+    if (e.target.classList.contains('image-overlay')) {
+        emit('close-image-detail');
     }
 }
 </script>
 
 <template>
     <Transition name="fade">
-        <div v-if="show" class="image-detail-overlay" @click="closeImageDetail">
-            <div class="image-detail-card" @click.stop>
-                <button class="close-btn" @click="closeImageDetail">×</button>
-                <div class="prompts">
-                    <div class="prompt-section">
-                        <h3>Positive Prompt</h3>
+        <div v-if="show" class="overlay image-overlay" @click="handleOverlayClick">
+            <div class="detail-card" @click.stop>
+                <button class="close-btn" @click="handleClose">×</button>
+                <div class="content-wrapper">
+                    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+                    <div v-else>
+                        <h2>Positive Prompt</h2>
                         <textarea v-model="positivePrompt" readonly></textarea>
-                    </div>
-                    <div class="prompt-section">
-                        <h3>Negative Prompt</h3>
+                        <h2>Negative Prompt</h2>
                         <textarea v-model="negativePrompt" readonly></textarea>
                     </div>
                 </div>
@@ -106,17 +84,7 @@ function parsePrompts(metadata) {
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-
-.image-detail-overlay {
+.overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -126,10 +94,10 @@ function parsePrompts(metadata) {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1100;
+    z-index: 1000;
 }
 
-.image-detail-card {
+.detail-card {
     background: white;
     border-radius: 12px;
     width: 90%;
@@ -139,36 +107,6 @@ function parsePrompts(metadata) {
     position: relative;
     padding: 2rem;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.prompts {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.prompt-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.prompt-section h3 {
-    margin: 0;
-    font-size: 1.2rem;
-    color: #333;
-}
-
-.prompt-section textarea {
-    width: 100%;
-    height: 150px;
-    padding: 0.8rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    background: #f8f9fa;
-    resize: none;
-    outline: none;
 }
 
 .close-btn {
@@ -182,5 +120,30 @@ function parsePrompts(metadata) {
     color: #666;
     padding: 0.5rem;
     line-height: 1;
+}
+
+.content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+textarea {
+    width: 100%;
+    height: 150px;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    resize: none;
+    font-size: 1rem;
+    background: #f8f9fa;
+}
+
+.error-message {
+    color: #dc3545;
+    padding: 1rem;
+    background: #fee;
+    border-radius: 8px;
+    text-align: center;
 }
 </style>

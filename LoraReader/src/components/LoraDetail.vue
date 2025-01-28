@@ -1,6 +1,7 @@
 <script setup>
 import { defineProps, defineEmits, ref, onMounted, watch } from 'vue';
 import '@/assets/styles/LoraDetail.css';
+import ImageDetail from './ImageDetail.vue';
 
 const props = defineProps({
     lora: {
@@ -27,6 +28,8 @@ const uploadProgress = ref(0);
 const isEditing = ref(false);
 const editedConfig = ref(null);
 const showCopySuccess = ref(false);
+const showImageDetail = ref(false);
+const selectedImageUrl = ref('');
 
 // 重置状态的函数
 function resetState() {
@@ -102,7 +105,7 @@ async function setAsMainPreview() {
 }
 
 function handleOverlayClick(e) {
-    if (e.target.classList.contains('overlay')) {
+    if (e.target.classList.contains('lora-overlay')) {
         emit('close');
     }
 }
@@ -239,6 +242,15 @@ function handleClose() {
     emit('close');
 }
 
+function handleImageClick(imageUrl) {
+    selectedImageUrl.value = imageUrl;
+    showImageDetail.value = true;
+}
+
+function handleImageDetailClose() {
+    showImageDetail.value = false;
+}
+
 // 监听 show 属性变化
 watch(() => props.show, (newVal) => {
     if (!newVal) {
@@ -251,14 +263,14 @@ watch(() => props.show, (newVal) => {
 
 <template>
     <Transition name="fade">
-        <div v-if="show" class="overlay" @click="handleOverlayClick">
+        <div v-if="show" class="overlay lora-overlay" @click="handleOverlayClick">
             <div class="detail-card">
                 <button class="close-btn" @click="handleClose">×</button>
                 
                 <div class="content-wrapper">
                     <div class="preview-section">
                         <div v-if="previews.length > 0 || lora.has_preview" class="preview-container">
-                            <div class="image-wrapper">
+                            <div class="image-wrapper" @click="handleImageClick(`http://localhost:5000${previews[currentPreviewIndex] || lora.preview_path}`)">
                                 <img :src="`http://localhost:5000${previews[currentPreviewIndex] || lora.preview_path}`" 
                                      :alt="lora.name" 
                                      class="preview-image"
@@ -442,6 +454,11 @@ watch(() => props.show, (newVal) => {
                         </template>
                     </div>
                 </div>
+                <ImageDetail 
+                    :image-url="selectedImageUrl"
+                    :show="showImageDetail"
+                    @close-image-detail="handleImageDetailClose"
+                />
             </div>
         </div>
     </Transition>
