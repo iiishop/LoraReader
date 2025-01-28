@@ -119,6 +119,21 @@ def get_lora_metadata(file_path):
         return {}
 
 
+def get_lora_config(file_path):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+            return {
+                'activation_text': config.get('activation text', ''),
+                'preferred_weight': config.get('preferred weight', 0),
+                'notes': config.get('notes', ''),
+                'description': config.get('description', '')
+            }
+    except Exception as e:
+        logger.error(f"Error reading lora config: {e}")
+        return {}
+
+
 @app.route('/lora-files', methods=['GET'])
 def get_lora_files():
     try:
@@ -153,13 +168,20 @@ def get_lora_files():
                 config_file = next((f for f in files if f.startswith(
                     base_name) and f.endswith('.json')), None)
 
+                # 获取配置文件内容
+                config_data = {}
+                if config_file:
+                    config_path = os.path.join(current_path, config_file)
+                    config_data = get_lora_config(config_path)
+
                 lora_info = {
                     'name': file,
                     'base_name': base_name,
                     'has_preview': bool(preview_file),
                     'has_config': bool(config_file),
                     'preview_path': f'/preview?path={sub_path}&file={preview_file}' if preview_file else None,
-                    'metadata': metadata
+                    'metadata': metadata,
+                    'config': config_data  # 添加配置数据
                 }
                 lora_files.append(lora_info)
 
@@ -269,6 +291,42 @@ def upload_preview():
 
     except Exception as e:
         logger.error(f"Error uploading preview: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/update-config', methods=['POST'])
+def update_lora_config():
+    try:
+        data = request.json
+        base_path = load_config().get('lora_path', '')
+        sub_path = data.get('path', '').strip('/')
+        lora_name = data.get('lora_name', '')
+        config = data.get('config', {})
+
+        if not all([base_path, lora_name]):
+            return jsonify({'error': 'Invalid parameters'}), 400
+
+        # 构建配置文件路径
+        current_path = os.path.join(base_path, sub_path) if sub_path else base_path
+        config_filename = f"{lora_name}.json"
+        config_path = os.path.join(current_path, config_filename)
+
+        # 准备新的配置数据
+        config_data = {
+            'activation text': config.get('activation_text', ''),
+            'preferred weight': config.get('preferred_weight', 0),
+            'notes': config.get('notes', ''),
+            'description': config.get('description', '')
+        }
+
+        # 写入文件
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, indent=4, ensure_ascii=False)
+
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        logger.error(f"Error updating lora config: {e}")
         return jsonify({'error': str(e)}), 500
 
 

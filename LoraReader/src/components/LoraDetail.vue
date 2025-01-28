@@ -23,6 +23,9 @@ const showUploadBox = ref(false);
 const isHovering = ref(false);
 const isUploading = ref(false);
 const uploadProgress = ref(0);
+const isEditing = ref(false);
+const editedConfig = ref(null);
+const showCopySuccess = ref(false);
 
 // 重置状态的函数
 function resetState() {
@@ -146,13 +149,80 @@ async function handleDrop(e) {
 function handleDragOver(e) {
     e.preventDefault();
 }
+
+function startEditing() {
+    editedConfig.value = {
+        activation_text: props.lora.config?.activation_text || '',
+        preferred_weight: props.lora.config?.preferred_weight || 0,
+        notes: props.lora.config?.notes || '',
+        description: props.lora.config?.description || ''
+    };
+    isEditing.value = true;
+}
+
+async function saveConfig() {
+    try {
+        const response = await fetch('http://localhost:5000/update-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                path: props.currentPath,
+                lora_name: props.lora.base_name,
+                config: editedConfig.value
+            })
+        });
+
+        if (response.ok) {
+            // 更新本地数据
+            props.lora.config = { ...editedConfig.value };
+            isEditing.value = false;
+        } else {
+            alert('保存失败');
+        }
+    } catch (error) {
+        console.error('保存配置失败:', error);
+        alert('保存失败');
+    }
+}
+
+async function copyActivationText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showCopySuccess.value = true;
+        setTimeout(() => {
+            showCopySuccess.value = false;
+        }, 2000);
+    } catch (err) {
+        console.error('复制失败:', err);
+    }
+}
+
+function handleClose() {
+    // 重置所有状态
+    isEditing.value = false;
+    editedConfig.value = null;
+    showUploadBox.value = false;
+    currentPreviewIndex.value = 0;
+    emit('close');
+}
+
+// 监听 show 属性变化
+watch(() => props.show, (newVal) => {
+    if (!newVal) {
+        // 当面板关闭时重置状态
+        isEditing.value = false;
+        editedConfig.value = null;
+    }
+});
 </script>
 
 <template>
     <Transition name="fade">
         <div v-if="show" class="overlay" @click="handleOverlayClick">
             <div class="detail-card">
-                <button class="close-btn" @click="$emit('close')">×</button>
+                <button class="close-btn" @click="handleClose">×</button>
                 
                 <div class="content-wrapper">
                     <div class="preview-section">
@@ -222,6 +292,90 @@ function handleDragOver(e) {
                                 <span class="label">Alpha</span>
                                 <span class="value">{{ lora.metadata?.ss_network_alpha || 'N/A' }}</span>
                             </div>
+                        </div>
+
+                        <!-- 添加配置信息显示 -->
+                        <div v-if="lora.has_config" class="config-section">
+                            <div class="config-header">
+                                <h3>配置信息</h3>
+                                <button v-if="!isEditing" 
+                                        @click="startEditing" 
+                                        class="edit-btn">
+                                    编辑
+                                </button>
+                                <button v-else 
+                                        @click="saveConfig" 
+                                        class="save-btn">
+                                    保存
+                                </button>
+                            </div>
+
+                            <template v-if="isEditing">
+                                <div class="config-item">
+                                    <h3 class="config-title">触发词</h3>
+                                    <textarea 
+                                        v-model="editedConfig.activation_text"
+                                        class="config-input activation-text"
+                                        rows="3"
+                                    ></textarea>
+                                </div>
+                                
+                                <div class="config-item">
+                                    <h3 class="config-title">推荐权重</h3>
+                                    <input 
+                                        type="number" 
+                                        v-model.number="editedConfig.preferred_weight"
+                                        class="config-input weight"
+                                        step="0.1"
+                                    />
+                                </div>
+                                
+                                <div class="config-item">
+                                    <h3 class="config-title">备注</h3>
+                                    <textarea 
+                                        v-model="editedConfig.notes"
+                                        class="config-input notes"
+                                        rows="5"
+                                    ></textarea>
+                                </div>
+                            </template>
+                            <template v-else>
+                                <!-- 原有的只读显示部分 -->
+                                <div v-if="lora.config.activation_text" class="config-item">
+                                    <div class="config-header">
+                                        <h3 class="config-title">触发词</h3>
+                                        <button @click="copyActivationText(lora.config.activation_text)" 
+                                                class="copy-btn"
+                                                :class="{ 'success': showCopySuccess }">
+                                            {{ showCopySuccess ? '已复制!' : '复制' }}
+                                        </button>
+                                    </div>
+                                    <div class="config-content activation-text">
+                                        {{ lora.config.activation_text }}
+                                    </div>
+                                </div>
+                                
+                                <div v-if="lora.config.preferred_weight" class="config-item">
+                                    <h3 class="config-title">推荐权重</h3>
+                                    <div class="config-content weight">
+                                        {{ lora.config.preferred_weight }}
+                                    </div>
+                                </div>
+                                
+                                <div v-if="lora.config.notes" class="config-item">
+                                    <h3 class="config-title">备注</h3>
+                                    <div class="config-content notes">
+                                        <pre>{{ lora.config.notes }}</pre>
+                                    </div>
+                                </div>
+
+                                <div v-if="lora.config.description" class="config-item">
+                                    <h3 class="config-title">描述</h3>
+                                    <div class="config-content description">
+                                        {{ lora.config.description }}
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -501,5 +655,148 @@ function handleDragOver(e) {
 .btn-content {
     position: relative;
     z-index: 1;
+}
+
+.config-section {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.config-item {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.config-title {
+    font-size: 1rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.config-content {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #333;
+}
+
+.activation-text {
+    font-family: monospace;
+    background: #edf2f7;
+    padding: 0.5rem;
+    border-radius: 4px;
+    white-space: pre-wrap;
+}
+
+.weight {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: #2196f3;
+}
+
+.notes {
+    white-space: pre-wrap;
+}
+
+.notes pre {
+    margin: 0;
+    font-family: inherit;
+    white-space: pre-wrap;
+}
+
+.description {
+    font-style: italic;
+    color: #666;
+}
+
+.config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.edit-btn, .save-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.edit-btn {
+    background: #f0f0f0;
+    color: #666;
+}
+
+.save-btn {
+    background: #4caf50;
+    color: white;
+}
+
+.edit-btn:hover {
+    background: #e0e0e0;
+}
+
+.save-btn:hover {
+    background: #388e3c;
+}
+
+.config-input {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.config-input:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+    outline: none;
+}
+
+.config-input.activation-text {
+    font-family: monospace;
+}
+
+.config-input.weight {
+    width: 100px;
+    text-align: center;
+    font-size: 1.1rem;
+    color: #2196f3;
+}
+
+.config-input.notes {
+    font-family: inherit;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.copy-btn {
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    background: white;
+    color: #666;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+    background: #f5f5f5;
+    border-color: #ccc;
+}
+
+.copy-btn.success {
+    background: #4caf50;
+    color: white;
+    border-color: #4caf50;
 }
 </style>
