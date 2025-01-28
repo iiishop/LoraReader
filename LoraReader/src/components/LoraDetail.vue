@@ -429,6 +429,7 @@ watch(() => props.show, (newVal) => {
                      @drop="handleDrop"
                      @dragover="handleDragOver">
                     <div class="upload-content" :class="{ 'is-uploading': isUploading }">
+                        <button class="close-upload-btn" @click="toggleUploadBox">×</button> <!-- 添加关闭按钮 -->
                         <template v-if="isUploading">
                             <div class="upload-progress">
                                 <div class="progress-bar" :style="{ width: uploadProgress + '%' }"></div>
@@ -629,12 +630,12 @@ watch(() => props.show, (newVal) => {
     align-items: center;
     justify-content: center;
     z-index: 1100;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, transform 0.3s ease; /* 修改这里 */
 }
 
 .upload-box:hover {
     border-color: #2196f3;
-    transform: scale(1.02);
+    /* 移除 transform: scale(1.02); */
 }
 
 .upload-content {
@@ -860,5 +861,18 @@ watch(() => props.show, (newVal) => {
     background: #f8f9fa;
     border-radius: 8px;
     font-style: italic;
+}
+
+.close-upload-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    padding: 0.5rem;
+    line-height: 1;
 }
 </style>
