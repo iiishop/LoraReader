@@ -253,7 +253,7 @@ def upload_preview():
 
         file = request.files['file']
         lora_name = request.form.get('lora_name')
-        #如果最后是.则去掉
+        # 如果最后是.则去掉
         if lora_name.endswith('.'):
             lora_name = lora_name[:-1]
         sub_path = request.form.get('path', '').strip('/')
@@ -276,23 +276,17 @@ def upload_preview():
 
         # 获取当前目录下所有预览图数量并找到最大编号
         files = os.listdir(current_path)
-        preview_pattern = re.compile(f'^{re.escape(lora_name)}_\\d+\\.png$')
-        existing_previews = []
-        max_number = 0
+        preview_pattern = re.compile(f'^{re.escape(lora_name)}(_\\d+)?\\.png$')
+        existing_previews = [f for f in files if preview_pattern.match(f)]
         
-        # 遍历所有文件找到现有的预览图编号
-        for f in files:
-            match = re.match(f'^{re.escape(lora_name)}_(\d+)\\.png$', f)
-            if match:
-                num = int(match.group(1))
-                max_number = max(max_number, num)
-                existing_previews.append(f)
+        # 确定新文件名
+        if existing_previews:
+            max_number = max([int(re.search(r'_(\d+)\.png$', f).group(1)) for f in existing_previews if re.search(r'_(\d+)\.png$', f)] or [0])
+            next_number = max_number + 1
+            new_filename = f'{lora_name}_{next_number}.png'
+        else:
+            new_filename = f'{lora_name}.png'
 
-        # 确定下一个编号
-        next_number = max_number + 1 if existing_previews else 1
-
-        # 构造新文件名
-        new_filename = f'{lora_name}_{next_number}.png'
         file_path = os.path.join(current_path, new_filename)
         
         logger.info(f"Saving preview to: {file_path}")
@@ -316,6 +310,8 @@ def update_lora_config():
         base_path = load_config().get('lora_path', '')
         sub_path = data.get('path', '').strip('/')
         lora_name = data.get('lora_name', '')
+        if lora_name.endswith('.'):
+            lora_name = lora_name[:-1]
         config = data.get('config', {})
 
         if not all([base_path, lora_name]):
