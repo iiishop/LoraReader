@@ -36,15 +36,11 @@ function confirmSelection() {
 
 <template>
     <div class="path-selector">
-            <input type="text" v-model="folderPath" placeholder="选择文件夹路径" readonly />
-            <div class="buttons">
-                <button class="select-btn" @click="openFolderSelector">
-                    选择文件夹
-                </button>
-                <button class="confirm-btn" @click="confirmSelection">
-                    确认
-                </button>
-            </div>
+        <input type="text" v-model="folderPath" placeholder="选择文件夹路径" readonly />
+        <div class="buttons">
+            <button class="select-btn" @click="openFolderSelector">选择文件夹</button>
+            <button class="confirm-btn" @click="confirmSelection">确认</button>
+        </div>
     </div>
 </template>
 
@@ -52,19 +48,10 @@ function confirmSelection() {
 .path-selector {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    background-color: #f5f5f5;
-    max-width: 600px;
-    padding: 2rem;
     gap: 1rem;
-    background: white;
-    margin: auto auto;
-
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
 }
 
+/* ...其他样式保持不变... */
 
 .path-selector:hover {
     transform: translateY(-2px);

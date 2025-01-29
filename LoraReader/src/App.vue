@@ -1,6 +1,8 @@
 <script setup>
 import { defineAsyncComponent, ref, onMounted } from 'vue';
+import NavigationMenu from '@/components/NavigationMenu.vue';
 const PathSelector = defineAsyncComponent(() => import('@/components/PathSelector.vue'));
+const SettingsView = defineAsyncComponent(() => import('@/views/SettingsView.vue'));
 const FolderList = defineAsyncComponent(() => import('@/components/FolderList.vue'));
 const LoraViewer = defineAsyncComponent(() => import('@/components/LoraViewer.vue'));
 const FilterSidebar = defineAsyncComponent(() => import('@/components/FilterSidebar.vue'));
@@ -16,6 +18,7 @@ const activeFilters = ref({
     dims: [],
     alphas: []
 });
+const currentModule = ref('lora');  // 'lora' 或 'settings'
 
 async function checkConfig() {
   const response = await fetch('http://localhost:5000/config');
@@ -63,6 +66,10 @@ function handleFilterChange(filters) {
     activeFilters.value = filters;
 }
 
+function handleModuleChange(moduleId) {
+    currentModule.value = moduleId;
+}
+
 onMounted(checkConfig);
 </script>
 
@@ -71,32 +78,46 @@ onMounted(checkConfig);
     <PathSelector v-if="showSelector" :class="{ visible: selectorVisible }" @confirm="handleConfirm" />
   </Transition>
   <div class="app-container">
-    <FolderList 
-      v-if="!showSelector" 
-      @path-change="handleFolderChange" 
-      @expand-change="handleExpandChange" 
-    />
-    <div class="main-content" :class="{
-      'collapsed': showSelector,
-      'list-collapsed': !isListExpanded,
-      'filter-collapsed': !isFilterExpanded
-    }">
-      <LoraViewer 
-        v-if="!showSelector"
-        :current-path="currentPath"
-        :is-expanded="isListExpanded"
-        :is-filter-expanded="isFilterExpanded"
-        :active-filters="activeFilters"
-        @filter-expand-change="handleFilterExpandChange"
-        @lora-files-change="handleLoraFilesChange"
+    <!-- Lora 预览模块 -->
+    <template v-if="currentModule === 'lora'">
+      <FolderList 
+        v-if="!showSelector" 
+        @path-change="handleFolderChange" 
+        @expand-change="handleExpandChange" 
       />
-    </div>
-    <FilterSidebar 
-      v-if="!showSelector" 
-      :is-expanded="isFilterExpanded"
-      :lora-files="loraFiles"
-      @expand-change="handleFilterExpandChange"
-      @filter-change="handleFilterChange"
+      <div class="main-content" :class="{
+        'collapsed': showSelector,
+        'list-collapsed': !isListExpanded,
+        'filter-collapsed': !isFilterExpanded
+      }">
+        <LoraViewer 
+          v-if="!showSelector"
+          :current-path="currentPath"
+          :is-expanded="isListExpanded"
+          :is-filter-expanded="isFilterExpanded"
+          :active-filters="activeFilters"
+          @filter-expand-change="handleFilterExpandChange"
+          @lora-files-change="handleLoraFilesChange"
+        />
+      </div>
+      <FilterSidebar 
+        v-if="!showSelector" 
+        :is-expanded="isFilterExpanded"
+        :lora-files="loraFiles"
+        @expand-change="handleFilterExpandChange"
+        @filter-change="handleFilterChange"
+      />
+    </template>
+
+    <!-- 设置模块 -->
+    <template v-else-if="currentModule === 'settings'">
+      <SettingsView />
+    </template>
+
+    <!-- 导航菜单 -->
+    <NavigationMenu 
+      :current-module="currentModule"
+      @module-change="handleModuleChange"
     />
   </div>
 </template>
@@ -120,6 +141,7 @@ onMounted(checkConfig);
 
 .app-container {
   display: flex;
+  padding-bottom: 4rem; /* 为底部导航留出空间 */
 }
 
 .main-content {

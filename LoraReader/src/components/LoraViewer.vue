@@ -134,8 +134,19 @@ async function loadLoraFiles(path) {
         if (data.error) {
             error.value = data.error;
         } else {
+            // 暂存当前选中的文件名
+            const selectedLoraName = selectedLora.value?.name;
+            
             loraFiles.value = data.lora_files;
-            emit('lora-files-change', data.lora_files);  // 添加这行
+            emit('lora-files-change', data.lora_files);
+            
+            // 如果之前有选中的文件，找到并更新它
+            if (selectedLoraName && showDetail.value) {
+                const updatedLora = data.lora_files.find(lora => lora.name === selectedLoraName);
+                if (updatedLora) {
+                    selectedLora.value = updatedLora;
+                }
+            }
         }
     } catch (err) {
         error.value = `加载失败: ${err.message}`;
@@ -221,6 +232,7 @@ watch(() => props.currentPath, (newPath) => {
             :show="showDetail"
             :current-path="currentPath"
             @close="closeDetail"
+            @refresh="refreshLoraFiles"
         />
         <button class="refresh-btn" @click="refreshLoraFiles">🔄</button>
     </div>
