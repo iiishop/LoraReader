@@ -6,7 +6,8 @@ import ImageDetail from './ImageDetail.vue';
 const props = defineProps({
     lora: {
         type: Object,
-        required: true
+        required: false, // 改为不必需
+        default: () => ({}) // 提供默认值
     },
     show: {
         type: Boolean,
@@ -35,13 +36,14 @@ const selectedImageUrl = ref('');
 function resetState() {
     currentPreviewIndex.value = 0;
     previews.value = [];
-    if (props.lora.has_preview) {
+    if (props.lora?.has_preview) {  // 添加可选链操作符
         previews.value = [props.lora.preview_path];
     }
 }
 
 // 监听 lora 的变化
 watch(() => props.lora, async (newLora) => {
+    if (!newLora) return; // 添加空值检查
     resetState();
     if (newLora.has_preview) {
         await loadPreviews();
@@ -50,6 +52,7 @@ watch(() => props.lora, async (newLora) => {
 
 // 修改 onMounted
 onMounted(async () => {
+    if (!props.lora) return; // 添加空值检查
     resetState();
     if (props.lora.has_preview) {
         await loadPreviews();
@@ -263,7 +266,7 @@ watch(() => props.show, (newVal) => {
 
 <template>
     <Transition name="fade">
-        <div v-if="show" class="overlay lora-overlay" @click="handleOverlayClick">
+        <div v-if="show && lora" class="overlay lora-overlay" @click="handleOverlayClick">
             <div class="detail-card">
                 <button class="close-btn" @click="handleClose">×</button>
                 
