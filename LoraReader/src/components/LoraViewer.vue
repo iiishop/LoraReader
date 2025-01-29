@@ -240,7 +240,7 @@ watch(() => props.currentPath, (newPath) => {
 
 <style scoped>
 .lora-viewer {
-    padding-top: 4rem;  /* 为固定定位的搜索框留出空间 */
+    padding-top: 5rem;  /* 为固定定位的搜索框留出空间 */
 }
 
 .lora-grid {

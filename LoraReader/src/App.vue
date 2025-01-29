@@ -141,14 +141,12 @@ onMounted(checkConfig);
 
 .app-container {
   display: flex;
-  padding-bottom: 4rem; /* 为底部导航留出空间 */
+  padding-bottom: 6rem; /* 为底部导航留出空间 */
 }
 
 .main-content {
-  flex: 1;
   margin-left: 300px;
   margin-right: 300px;
-  padding: 2rem;
   transition: all 0.3s ease;
 }
 
