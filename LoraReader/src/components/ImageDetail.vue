@@ -43,6 +43,21 @@ watch(() => props.imageUrl, async (newUrl) => {
     }
 }, { immediate: true });
 
+// 添加文本清理函数
+function cleanText(text) {
+    // 基本清理
+    return text
+        // 替换零宽字符
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        // 替换不可打印字符 (控制字符)
+        .replace(/[\x00-\x1F\x7F]/g, '')
+        // 替换特殊空格
+        .replace(/[\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ')
+        // 规范化空格和换行
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 async function parseImage(url) {
     try {
         const response = await fetch(url);
@@ -55,12 +70,12 @@ async function parseImage(url) {
         const negativeMatch = text.match(/Negative prompt:\s*([\s\S]*?)Steps:/);
         
         if (positiveMatch) {
-            positivePrompt.value = positiveMatch[1].trim();
+            positivePrompt.value = cleanText(positiveMatch[1].trim());
             hasAnyValidData = true;
         }
         
         if (negativeMatch) {
-            negativePrompt.value = negativeMatch[1].trim();
+            negativePrompt.value = cleanText(negativeMatch[1].trim());
             hasAnyValidData = true;
         }
 
@@ -70,11 +85,11 @@ async function parseImage(url) {
             const negativeJsonMatch = text.match(/"negative":\s*"([^"]*)"/);
 
             if (positiveJsonMatch) {
-                positivePrompt.value = positiveJsonMatch[1].trim();
+                positivePrompt.value = cleanText(positiveJsonMatch[1].trim());
                 hasAnyValidData = true;
             }
             if (negativeJsonMatch) {
-                negativePrompt.value = negativeJsonMatch[1].trim();
+                negativePrompt.value = cleanText(negativeJsonMatch[1].trim());
                 hasAnyValidData = true;
             }
         }
@@ -115,27 +130,64 @@ async function parseImage(url) {
 
 async function copyPositivePrompt() {
     try {
-        await navigator.clipboard.writeText(positivePrompt.value);
+        // 复制前再次清理文本
+        const cleanedText = cleanText(positivePrompt.value);
+        await navigator.clipboard.writeText(cleanedText);
         showPositiveCopySuccess.value = true;
         setTimeout(() => {
             showPositiveCopySuccess.value = false;
         }, 2000);
     } catch (err) {
         console.error('复制失败:', err);
+        // 添加备用复制方法
+        fallbackCopy(cleanText(positivePrompt.value));
     }
 }
 
 async function copyNegativePrompt() {
     try {
-        await navigator.clipboard.writeText(negativePrompt.value);
+        // 复制前再次清理文本
+        const cleanedText = cleanText(negativePrompt.value);
+        await navigator.clipboard.writeText(cleanedText);
         showNegativeCopySuccess.value = true;
         setTimeout(() => {
             showNegativeCopySuccess.value = false;
         }, 2000);
     } catch (err) {
         console.error('复制失败:', err);
+        // 添加备用复制方法
+        fallbackCopy(cleanText(negativePrompt.value));
     }
+}
 
+// 添加备用复制方法
+function fallbackCopy(text) {
+    // 使用清理后的文本
+    const cleanedText = cleanText(text);
+    // 创建临时文本区域
+    const textArea = document.createElement('textarea');
+    textArea.value = cleanedText;
+    document.body.appendChild(textArea);
+    
+    // 选择并复制文本
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        // 显示成功提示
+        if (text === positivePrompt.value) {
+            showPositiveCopySuccess.value = true;
+            setTimeout(() => showPositiveCopySuccess.value = false, 2000);
+        } else {
+            showNegativeCopySuccess.value = true;
+            setTimeout(() => showNegativeCopySuccess.value = false, 2000);
+        }
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        alert('复制失败，请手动复制');
+    }
+    
+    // 清理临时元素
+    document.body.removeChild(textArea);
 }
 
 function handleClose() {
@@ -164,7 +216,7 @@ function handleOverlayClick(e) {
                                     <div class="prompt-box">{{ positivePrompt }}</div>
                                     <button class="copy-btn" 
                                             :class="{ 'success': showPositiveCopySuccess }" 
-                                            @click="copyPositivePrompt">
+                                            @click.stop="copyPositivePrompt">
                                         {{ showPositiveCopySuccess ? '已复制!' : '复制' }}
                                     </button>
                                 </div>
@@ -175,7 +227,7 @@ function handleOverlayClick(e) {
                                     <div class="prompt-box">{{ negativePrompt }}</div>
                                     <button class="copy-btn" 
                                             :class="{ 'success': showNegativeCopySuccess }" 
-                                            @click="copyNegativePrompt">
+                                            @click.stop="copyNegativePrompt">
                                         {{ showNegativeCopySuccess ? '已复制!' : '复制' }}
                                     </button>
                                 </div>
