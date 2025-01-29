@@ -19,7 +19,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['close', 'refresh']);  // 添加 refresh 事件
+const emit = defineEmits(['close']);
 const currentPreviewIndex = ref(0);
 const previews = ref([]);
 const showUploadBox = ref(false);
@@ -98,8 +98,6 @@ async function setAsMainPreview() {
             await loadPreviews();
             // 重置索引到第一张
             currentPreviewIndex.value = 0;
-            // 触发父组件的刷新
-            emit('refresh');
         } else {
             alert('设置主预览图失败');
         }
