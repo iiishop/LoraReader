@@ -10,6 +10,7 @@ const emit = defineEmits(['module-change']);
 
 const menuItems = [
     { id: 'lora', icon: '📚', label: 'Lora 预览' },
+    { id: 'combination', icon: '🔗', label: 'Lora 组合' },
     { id: 'settings', icon: '⚙️', label: '设置' }
 ];
 </script>

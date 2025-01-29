@@ -6,6 +6,7 @@ const SettingsView = defineAsyncComponent(() => import('@/views/SettingsView.vue
 const FolderList = defineAsyncComponent(() => import('@/components/FolderList.vue'));
 const LoraViewer = defineAsyncComponent(() => import('@/components/LoraViewer.vue'));
 const FilterSidebar = defineAsyncComponent(() => import('@/components/FilterSidebar.vue'));
+const LoraCombinationView = defineAsyncComponent(() => import('@/views/LoraCombinationView.vue'));
 
 const showSelector = ref(false);
 const selectorVisible = ref(false);
@@ -115,6 +116,13 @@ onMounted(checkConfig);
       <SettingsView />
     </template>
 
+    <!-- 添加 Lora 组合模块 -->
+    <template v-else-if="currentModule === 'combination'">
+      <div class="module-content combination-module-content">
+        <LoraCombinationView />
+      </div>
+    </template>
+
     <!-- 导航菜单 -->
     <NavigationMenu 
       :current-module="currentModule"
@@ -161,5 +169,12 @@ onMounted(checkConfig);
 
 .main-content.filter-collapsed {
   margin-right: 40px;
+}
+
+.combination-module-content {
+  padding: 2rem;
+  padding-bottom: 6rem;
+  margin: 0 auto;
+  max-width: 1200px;
 }
 </style>
