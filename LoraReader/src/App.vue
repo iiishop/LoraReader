@@ -82,6 +82,7 @@ onMounted(checkConfig);
     <template v-if="currentModule === 'lora'">
       <FolderList 
         v-if="!showSelector" 
+        :initial-path="currentPath"  
         @path-change="handleFolderChange" 
         @expand-change="handleExpandChange" 
       />

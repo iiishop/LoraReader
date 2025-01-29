@@ -1,8 +1,19 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 
 const folderPath = ref('');
-const emit = defineEmits(['confirm']);  // 确保在最上面定义 emit
+const isEditing = ref(false);
+const emit = defineEmits(['confirm']);
+
+async function getCurrentPath() {
+    try {
+        const response = await fetch('http://localhost:5000/config');
+        const data = await response.json();
+        folderPath.value = data.lora_path || '';
+    } catch (error) {
+        console.error('Error getting current path:', error);
+    }
+}
 
 async function openFolderSelector() {
     if (window.electron && window.electron.dialog) {
@@ -27,19 +38,52 @@ async function openFolderSelector() {
 }
 
 function confirmSelection() {
-    if (folderPath.value) {  // 添加路径检查
-        console.log('Confirming path:', folderPath.value);
+    if (folderPath.value) {
         emit('confirm', folderPath.value);
+        isEditing.value = false;
     }
 }
+
+function startEditing() {
+    isEditing.value = true;
+}
+
+function cancelEditing() {
+    getCurrentPath(); // 重置为当前路径
+    isEditing.value = false;
+}
+
+onMounted(getCurrentPath);
 </script>
 
 <template>
     <div class="path-selector">
-        <input type="text" v-model="folderPath" placeholder="选择文件夹路径" readonly />
-        <div class="buttons">
-            <button class="select-btn" @click="openFolderSelector">选择文件夹</button>
-            <button class="confirm-btn" @click="confirmSelection">确认</button>
+        <div class="input-group">
+            <input 
+                type="text" 
+                v-model="folderPath" 
+                placeholder="选择文件夹路径" 
+                :readonly="!isEditing" 
+                :class="{ 'editing': isEditing }"
+            />
+            <template v-if="!isEditing">
+                <button class="edit-btn" @click="startEditing">
+                    修改路径
+                </button>
+            </template>
+            <template v-else>
+                <div class="edit-buttons">
+                    <button class="select-btn" @click="openFolderSelector">
+                        选择文件夹
+                    </button>
+                    <button class="confirm-btn" @click="confirmSelection">
+                        确认
+                    </button>
+                    <button class="cancel-btn" @click="cancelEditing">
+                        取消
+                    </button>
+                </div>
+            </template>
         </div>
     </div>
 </template>
@@ -49,35 +93,41 @@ function confirmSelection() {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* ...其他样式保持不变... */
-
-.path-selector:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 input {
-    width: 100%;
+    flex: 1;
     padding: 0.8rem 1rem;
-    margin-bottom: 1rem;
     border: 2px solid #e0e0e0;
     border-radius: 6px;
     font-size: 1rem;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
     outline: none;
     background-color: #f8f9fa;
 }
 
-input:focus {
+input.editing {
     border-color: #4a90e2;
+    background-color: white;
 }
 
-.buttons {
+input:not(.editing) {
+    color: #666;
+}
+
+.edit-buttons {
     display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
+    gap: 0.5rem;
 }
 
 button {
@@ -86,11 +136,12 @@ button {
     border-radius: 6px;
     font-size: 1rem;
     cursor: pointer;
-    transition: transform 0.1s, opacity 0.2s;
+    transition: all 0.2s;
 }
 
-button:active {
-    transform: scale(0.98);
+.edit-btn {
+    background-color: #f0f0f0;
+    color: #666;
 }
 
 .select-btn {
@@ -98,30 +149,22 @@ button:active {
     color: white;
 }
 
-.select-btn:hover {
-    background-color: #357abd;
-}
-
 .confirm-btn {
     background-color: #2ecc71;
     color: white;
 }
 
-.confirm-btn:hover {
-    background-color: #27ae60;
+.cancel-btn {
+    background-color: #e74c3c;
+    color: white;
 }
 
-@media (max-width: 768px) {
-    .input-group {
-        padding: 1.5rem;
-    }
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 
-    .buttons {
-        flex-direction: column;
-    }
-
-    button {
-        width: 100%;
-    }
+button:active {
+    transform: translateY(0);
 }
 </style>

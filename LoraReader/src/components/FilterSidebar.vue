@@ -191,7 +191,7 @@ function clearAllFilters() {
     position: fixed;
     right: 0;
     top: 0;
-    bottom: 0;
+    bottom: 6rem;
     background: white;
     width: 300px;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);

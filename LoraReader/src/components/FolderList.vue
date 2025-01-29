@@ -8,6 +8,14 @@ const currentPath = ref('/');
 const canGoBack = ref(false);
 const emit = defineEmits(['path-change', 'expand-change']);
 
+// 添加props
+const props = defineProps({
+    initialPath: {  // 添加 initialPath prop
+        type: String,
+        default: '/'
+    }
+});
+
 function toggleSidebar() {
     isExpanded.value = !isExpanded.value;
     emit('expand-change', isExpanded.value);
@@ -44,8 +52,13 @@ function goBack() {
     loadFolders(parentPath);
 }
 
+// 修改 onMounted
 onMounted(() => {
-    loadFolders();
+    if (props.initialPath !== '/') {
+        loadFolders(props.initialPath);
+    } else {
+        loadFolders();
+    }
 });
 </script>
 
@@ -86,7 +99,7 @@ onMounted(() => {
     position: fixed;
     left: 0;
     top: 0;
-    bottom: 0;
+    bottom: 6rem;
     background: white;
     width: 300px;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);

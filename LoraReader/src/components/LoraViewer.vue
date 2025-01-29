@@ -396,7 +396,7 @@ watch(() => props.currentPath, (newPath) => {
 
 .refresh-btn {
     position: fixed;
-    bottom: 20px;
+    bottom: 100px;
     right: 20px;
     background-color: #4caf50;
     color: white;
