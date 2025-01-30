@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { updateLoraData, initializeAllLoras, initGlobalState } from './utils/globalVar'
+import { updateLoraData, initializeAllLoras, initGlobalState, globalState } from './utils/globalVar'
 
 const app = createApp(App)
 

@@ -9,6 +9,7 @@ const FilterSidebar = defineAsyncComponent(() => import('@/components/FilterSide
 const LoraCombinationView = defineAsyncComponent(() => import('@/views/LoraCombinationView.vue'));
 import LoraDetail from './components/LoraDetail.vue';
 import ImageDetail from './components/ImageDetail.vue';
+import LoraSearchResult from './components/detailComp/LoraSearchResult.vue';
 import { globalState } from './utils/globalVar';
 
 const showSelector = ref(false);
@@ -80,6 +81,10 @@ function handleLoraDetailClose(index) {
 
 function handleImageDetailClose(index) {
     globalState.closeImageDetail(index);
+}
+
+function handleSearchResultsClose() {
+    globalState.closeSearchResults();
 }
 
 onMounted(checkConfig);
@@ -161,6 +166,14 @@ onMounted(checkConfig);
             @close-image-detail="() => handleImageDetailClose(index)"
         />
     </template>
+
+    <!-- 添加搜索结果组件 -->
+    <LoraSearchResult
+        :search-results="globalState.searchResults.value"
+        :show="globalState.showSearchResults.value"
+        :search-term="globalState.searchTerm.value"
+        @close="handleSearchResultsClose"
+    />
   </div>
 </template>
 

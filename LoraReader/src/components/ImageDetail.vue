@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue';
-import { globalState } from '../utils/globalVar';
-import { findLoraByName } from '../utils/globalVar';
+import { globalState, findLorasByName } from '../utils/globalVar';
+import LoraSearchResult from './detailComp/LoraSearchResult.vue';
 
 const props = defineProps({
     imageUrl: {
@@ -194,20 +194,23 @@ function fallbackCopy(text) {
 
 function handleLoraClick(hash) {
     console.log('Clicked LoRA hash:', hash);
-    // 直接使用字符串分割方法提取 `name` 和 `hash`
     const [loraName, loraHash] = hash.split(':');
-    console.log('Extracted LoRA name:', loraName);
-    
-    // 移除 lora_ 或 lyco_ 前缀
     const cleanName = loraName.replace(/^(?:lora|lyco)_/, '');
     console.log('Cleaned name:', cleanName);
     
-    const lora = findLoraByName(cleanName);
-    if (lora) {
-        console.log('Found LoRA:', lora);
-        globalState.openLoraDetail(lora); // 移除 zIndex 参数，使用栈长度来计算
+    const results = findLorasByName(cleanName);
+    if (results.length === 0) {
+        console.log('No LoRA found');
+        // 可以添加提示
+        alert('未找到相关 LoRA');
+    } else if (results.length === 1) {
+        // 只有一个结果时直接打开
+        console.log('Found single LoRA:', results[0]);
+        globalState.openLoraDetail(results[0]);
     } else {
-        console.log('LoRA not found:', cleanName);
+        // 多个结果时显示选择面板
+        console.log('Found multiple LoRAs:', results);
+        globalState.openSearchResults(results, cleanName);
     }
 }
 
