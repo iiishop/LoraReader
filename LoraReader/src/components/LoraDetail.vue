@@ -236,17 +236,12 @@ async function copyActivationText(text) {
 }
 
 function handleClose() {
-    // 重置所有状态
-    isEditing.value = false;
-    editedConfig.value = null;
-    showUploadBox.value = false;
-    currentPreviewIndex.value = 0;
     emit('close');
 }
 
 // 修改图片点击处理方法
 function handleImageClick(imageUrl) {
-    globalState.openImageDetail(imageUrl);
+    globalState.openImageDetail(imageUrl); // 移除 zIndex 参数，使用栈长度来计算
 }
 
 // 监听 show 属性变化
@@ -456,3 +451,19 @@ watch(() => props.show, (newVal) => {
         </div>
     </Transition>
 </template>
+
+<style scoped>
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ...rest of existing styles... */
+</style>

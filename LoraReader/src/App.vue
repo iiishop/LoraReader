@@ -1,5 +1,5 @@
 <script setup>
-import { defineAsyncComponent, ref, onMounted } from 'vue';
+import { defineAsyncComponent, ref, onMounted, watch } from 'vue';
 import NavigationMenu from '@/components/NavigationMenu.vue';
 const PathSelector = defineAsyncComponent(() => import('@/components/PathSelector.vue'));
 const SettingsView = defineAsyncComponent(() => import('@/views/SettingsView.vue'));
@@ -74,15 +74,16 @@ function handleModuleChange(moduleId) {
     currentModule.value = moduleId;
 }
 
-function handleLoraDetailClose() {
-    globalState.closeLoraDetail();
+function handleLoraDetailClose(index) {
+    globalState.closeLoraDetail(index);
 }
 
-function handleImageDetailClose() {
-    globalState.closeImageDetail();
+function handleImageDetailClose(index) {
+    globalState.closeImageDetail(index);
 }
 
 onMounted(checkConfig);
+
 </script>
 
 <template>
@@ -140,19 +141,26 @@ onMounted(checkConfig);
       @module-change="handleModuleChange"
     />
 
-    <!-- 添加详情组件 -->
-    <LoraDetail 
-        :lora="globalState.selectedLora.value"
-        :show="globalState.showLoraDetail.value"
-        :current-path="currentPath"
-        @close="handleLoraDetailClose"
-    />
+    <!-- 修改 LoraDetail 部分，使用 v-for 渲染多个面板 -->
+    <template v-for="(detail, index) in globalState.loraDetailStack?.value || []" :key="`lora-${index}`">
+        <LoraDetail 
+            :lora="detail.lora"
+            :show="true"
+            :current-path="currentPath"
+            :style="{ zIndex: detail.zIndex }"
+            @close="() => handleLoraDetailClose(index)"
+            @refresh="() => {}"
+        />
+    </template>
     
-    <ImageDetail 
-        :image-url="globalState.selectedImageUrl.value"
-        :show="globalState.showImageDetail.value"
-        @close-image-detail="handleImageDetailClose"
-    />
+    <template v-for="(detail, index) in globalState.imageDetailStack?.value || []" :key="`image-${index}`">
+        <ImageDetail 
+            :image-url="detail.imageUrl"
+            :show="true"
+            :style="{ zIndex: detail.zIndex }"
+            @close-image-detail="() => handleImageDetailClose(index)"
+        />
+    </template>
   </div>
 </template>
 

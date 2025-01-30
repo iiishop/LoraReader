@@ -1,26 +1,32 @@
 import { createApp } from 'vue'
 import App from './App.vue'
-import { updateLoraData } from './utils/globalVar'
+import { updateLoraData, initializeAllLoras, initGlobalState } from './utils/globalVar'
 
 const app = createApp(App)
 
-// 初始化全局 Lora 数据
-async function initGlobalLoras() {
+// 初始化应用数据
+async function initializeApplication() {
     try {
+        // 初始化全局状态
+        initGlobalState()
+        
+        // 初始化全局 LoRA 数据
+        await initializeAllLoras()
+        
+        // 初始化当前页面数据
         const response = await fetch('http://localhost:5000/lora-files?path=/')
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        const data = await response.json()
-        if (!data.error) {
-            updateLoraData(data.lora_files)
+        if (response.ok) {
+            const data = await response.json()
+            if (!data.error) {
+                updateLoraData(data.lora_files)
+            }
         }
     } catch (err) {
-        console.error('Error initializing global loras:', err)
+        console.error('Error initializing application:', err)
     }
 }
 
 // 启动应用前初始化数据
-initGlobalLoras().then(() => {
+initializeApplication().then(() => {
     app.mount('#app')
 })

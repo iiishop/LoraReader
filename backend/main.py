@@ -417,6 +417,64 @@ def swap_preview():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/scan-all-loras', methods=['GET'])
+def scan_all_loras():
+    try:
+        config = load_config()
+        base_path = config.get('lora_path', '')
+
+        if not base_path or not os.path.exists(base_path):
+            return jsonify({'error': 'Invalid base path'}), 404
+
+        all_lora_files = []
+
+        def scan_directory(directory, relative_path=''):
+            for item in os.listdir(directory):
+                full_path = os.path.join(directory, item)
+                item_relative_path = os.path.join(relative_path, item)
+
+                if os.path.isdir(full_path):
+                    # 递归扫描子目录
+                    scan_directory(full_path, item_relative_path)
+                elif item.endswith('.safetensors'):
+                    # 处理 LoRA 文件
+                    base_name = item[:-11]
+                    metadata = get_lora_metadata(full_path)
+
+                    # 检查相关文件
+                    preview_file = next((f for f in os.listdir(directory) if f.startswith(base_name) and f.endswith('.png')), None)
+                    config_file = next((f for f in os.listdir(directory) if f.startswith(base_name) and f.endswith('.json')), None)
+
+                    # 获取配置数据
+                    config_data = {}
+                    if config_file:
+                        config_path = os.path.join(directory, config_file)
+                        config_data = get_lora_config(config_path)
+
+                    lora_info = {
+                        'name': item,
+                        'base_name': base_name,
+                        'has_preview': bool(preview_file),
+                        'has_config': bool(config_file),
+                        'preview_path': f'/preview?path={relative_path}&file={preview_file}' if preview_file else None,
+                        'metadata': metadata,
+                        'config': config_data,
+                        'relative_path': relative_path  # 添加相对路径信息
+                    }
+                    all_lora_files.append(lora_info)
+
+        # 开始递归扫描
+        scan_directory(base_path)
+        
+        return jsonify({
+            'lora_files': all_lora_files
+        })
+
+    except Exception as e:
+        logger.error(f"Error scanning all lora files: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     try:
         logger.info("Starting Flask server...")        

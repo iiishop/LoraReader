@@ -192,15 +192,22 @@ function fallbackCopy(text) {
     document.body.removeChild(textArea);
 }
 
-// 添加 Lora 点击处理方法
 function handleLoraClick(hash) {
-    const match = hash.match(/(?:lora|lyco)_([^:]+):/i);
-    if (match) {
-        const loraName = match[1];
-        const lora = findLoraByName(loraName);
-        if (lora) {
-            globalState.openLoraDetail(lora);
-        }
+    console.log('Clicked LoRA hash:', hash);
+    // 直接使用字符串分割方法提取 `name` 和 `hash`
+    const [loraName, loraHash] = hash.split(':');
+    console.log('Extracted LoRA name:', loraName);
+    
+    // 移除 lora_ 或 lyco_ 前缀
+    const cleanName = loraName.replace(/^(?:lora|lyco)_/, '');
+    console.log('Cleaned name:', cleanName);
+    
+    const lora = findLoraByName(cleanName);
+    if (lora) {
+        console.log('Found LoRA:', lora);
+        globalState.openLoraDetail(lora); // 移除 zIndex 参数，使用栈长度来计算
+    } else {
+        console.log('LoRA not found:', cleanName);
     }
 }
 
@@ -388,7 +395,7 @@ function handleOverlayClick(e) {
     transition: all 0.2s ease;
 }
 
-.copy-btn:hover.success {
+copy-btn:hover.success {
     background: #45a049;
 }
 
@@ -463,6 +470,7 @@ function handleOverlayClick(e) {
 .hash-item:hover {
     background: #bbdefb;
     transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
 .prompts-container {
