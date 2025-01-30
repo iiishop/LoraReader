@@ -7,6 +7,9 @@ const FolderList = defineAsyncComponent(() => import('@/components/FolderList.vu
 const LoraViewer = defineAsyncComponent(() => import('@/components/LoraViewer.vue'));
 const FilterSidebar = defineAsyncComponent(() => import('@/components/FilterSidebar.vue'));
 const LoraCombinationView = defineAsyncComponent(() => import('@/views/LoraCombinationView.vue'));
+import LoraDetail from './components/LoraDetail.vue';
+import ImageDetail from './components/ImageDetail.vue';
+import { globalState } from './utils/globalVar';
 
 const showSelector = ref(false);
 const selectorVisible = ref(false);
@@ -71,6 +74,14 @@ function handleModuleChange(moduleId) {
     currentModule.value = moduleId;
 }
 
+function handleLoraDetailClose() {
+    globalState.closeLoraDetail();
+}
+
+function handleImageDetailClose() {
+    globalState.closeImageDetail();
+}
+
 onMounted(checkConfig);
 </script>
 
@@ -127,6 +138,20 @@ onMounted(checkConfig);
     <NavigationMenu 
       :current-module="currentModule"
       @module-change="handleModuleChange"
+    />
+
+    <!-- 添加详情组件 -->
+    <LoraDetail 
+        :lora="globalState.selectedLora.value"
+        :show="globalState.showLoraDetail.value"
+        :current-path="currentPath"
+        @close="handleLoraDetailClose"
+    />
+    
+    <ImageDetail 
+        :image-url="globalState.selectedImageUrl.value"
+        :show="globalState.showImageDetail.value"
+        @close-image-detail="handleImageDetailClose"
     />
   </div>
 </template>

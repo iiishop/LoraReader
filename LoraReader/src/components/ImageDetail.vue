@@ -1,5 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue';
+import { globalState } from '../utils/globalVar';
+import { findLoraByName } from '../utils/globalVar';
 
 const props = defineProps({
     imageUrl: {
@@ -190,6 +192,18 @@ function fallbackCopy(text) {
     document.body.removeChild(textArea);
 }
 
+// 添加 Lora 点击处理方法
+function handleLoraClick(hash) {
+    const match = hash.match(/(?:lora|lyco)_([^:]+):/i);
+    if (match) {
+        const loraName = match[1];
+        const lora = findLoraByName(loraName);
+        if (lora) {
+            globalState.openLoraDetail(lora);
+        }
+    }
+}
+
 function handleClose() {
     emit('close-image-detail');
 }
@@ -269,11 +283,12 @@ function handleOverlayClick(e) {
                             <div v-if="generationParams.loraHashes.length" class="lora-hashes">
                                 <h3>Used LoRAs</h3>
                                 <div class="hash-list">
-                                    <div v-for="hash in generationParams.loraHashes" 
-                                         :key="hash" 
-                                         class="hash-item">
+                                    <button v-for="hash in generationParams.loraHashes" 
+                                            :key="hash" 
+                                            class="hash-item"
+                                            @click="handleLoraClick(hash)">
                                         {{ hash }}
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -440,6 +455,14 @@ function handleOverlayClick(e) {
     border-radius: 4px;
     font-size: 0.9rem;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.hash-item:hover {
+    background: #bbdefb;
+    transform: translateY(-1px);
 }
 
 .prompts-container {

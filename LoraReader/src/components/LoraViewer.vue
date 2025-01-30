@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue';
 import { gsap } from 'gsap';
 import { TransitionGroup } from 'vue';
-import LoraDetail from './LoraDetail.vue';
+import { globalLoraMap, updateLoraData, globalState } from '../utils/globalVar';
 
 const props = defineProps({
     currentPath: {
@@ -35,8 +35,8 @@ const loading = ref(false);
 const searchQuery = ref('');
 
 const filteredLoraFiles = computed(() => {
-    console.log('开始筛选，当前文件数:', loraFiles.value.length);
-    let result = loraFiles.value;
+    console.log('开始筛选，当前文件数:', Array.from(globalLoraMap.value.values()).length);
+    let result = Array.from(globalLoraMap.value.values());
     
     // 应用搜索过滤
     if (searchQuery.value) {
@@ -84,17 +84,14 @@ const filteredLoraFiles = computed(() => {
     return result;
 });
 
+// 修改点击处理方法
+function handleLoraClick(lora) {
+    globalState.openLoraDetail(lora);
+}
+
+// 移除不需要的状态和方法
 const selectedLora = ref(null);
 const showDetail = ref(false);
-
-function handleLoraClick(lora) {
-    selectedLora.value = lora;
-    showDetail.value = true;
-}
-
-function closeDetail() {
-    showDetail.value = false;
-}
 
 // GSAP 动画
 const onBeforeEnter = (el) => {
@@ -137,12 +134,12 @@ async function loadLoraFiles(path) {
             // 暂存当前选中的文件名
             const selectedLoraName = selectedLora.value?.name;
             
-            loraFiles.value = data.lora_files;
+            updateLoraData(data.lora_files);
             emit('lora-files-change', data.lora_files);
             
             // 如果之前有选中的文件，找到并更新它
             if (selectedLoraName && showDetail.value) {
-                const updatedLora = data.lora_files.find(lora => lora.name === selectedLoraName);
+                const updatedLora = globalLoraMap.value.get(selectedLoraName);
                 if (updatedLora) {
                     selectedLora.value = updatedLora;
                 }
@@ -227,13 +224,7 @@ watch(() => props.currentPath, (newPath) => {
             </div>
         </TransitionGroup>
         
-        <LoraDetail 
-            :lora="selectedLora"
-            :show="showDetail"
-            :current-path="currentPath"
-            @close="closeDetail"
-            @refresh="refreshLoraFiles"
-        />
+        <!-- 移除 LoraDetail 组件 -->
         <button class="refresh-btn" @click="refreshLoraFiles">🔄</button>
     </div>
 </template>

@@ -2,6 +2,7 @@
 import { defineProps, defineEmits, ref, onMounted, watch } from 'vue';
 import '@/assets/styles/LoraDetail.css';
 import ImageDetail from './ImageDetail.vue';
+import { globalState } from '../utils/globalVar';
 
 const props = defineProps({
     lora: {
@@ -29,8 +30,6 @@ const uploadProgress = ref(0);
 const isEditing = ref(false);
 const editedConfig = ref(null);
 const showCopySuccess = ref(false);
-const showImageDetail = ref(false);
-const selectedImageUrl = ref('');
 
 // 重置状态的函数
 function resetState() {
@@ -245,13 +244,9 @@ function handleClose() {
     emit('close');
 }
 
+// 修改图片点击处理方法
 function handleImageClick(imageUrl) {
-    selectedImageUrl.value = imageUrl;
-    showImageDetail.value = true;
-}
-
-function handleImageDetailClose() {
-    showImageDetail.value = false;
+    globalState.openImageDetail(imageUrl);
 }
 
 // 监听 show 属性变化
@@ -457,11 +452,6 @@ watch(() => props.show, (newVal) => {
                         </template>
                     </div>
                 </div>
-                <ImageDetail 
-                    :image-url="selectedImageUrl"
-                    :show="showImageDetail"
-                    @close-image-detail="handleImageDetailClose"
-                />
             </div>
         </div>
     </Transition>
