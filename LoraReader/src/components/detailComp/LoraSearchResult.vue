@@ -21,9 +21,28 @@ const emit = defineEmits(['close']);
 const pageSize = 10;
 const currentDisplayCount = ref(pageSize);
 
-// 计算当前应该显示的结果
+// 修改计算属性
 const displayedResults = computed(() => {
-    return props.searchResults.slice(0, currentDisplayCount.value);
+    let results = [...props.searchResults];
+    
+    switch(currentSort.value) {
+        case 'name':
+            results.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+        case 'clicks':
+            results.sort((a, b) => {
+                // 仅使用当前搜索词的点击数
+                const aClicks = a.search_clicks || 0;
+                const bClicks = b.search_clicks || 0;
+                return bClicks - aClicks;  // 降序排序
+            });
+            break;
+        case 'relevance':
+        default:
+            break;
+    }
+    
+    return results.slice(0, currentDisplayCount.value);
 });
 
 // 计算是否还有更多结果
@@ -56,20 +75,10 @@ watch(() => props.show, (newVal) => {
 // 添加排序功能
 const sortOptions = ref([
     { label: '相关度', value: 'relevance' },
-    { label: '名称', value: 'name' }
+    { label: '名称', value: 'name' },
+    { label: '点击量', value: 'clicks' }  // 添加点击量排序选项
 ]);
 const currentSort = ref('relevance');
-
-const sortedResults = computed(() => {
-    let results = [...props.searchResults];
-    switch(currentSort.value) {
-        case 'name':
-            return results.sort((a, b) => a.name.localeCompare(b.name));
-        case 'relevance':
-        default:
-            return results; // 保持原有排序（按相似度）
-    }
-});
 
 </script>
 
@@ -111,6 +120,9 @@ const sortedResults = computed(() => {
                                     <span class="tag">{{ lora.metadata.ss_base_model_version }}</span>
                                     <span class="tag" v-if="lora.metadata.ss_network_dim">
                                         Dim: {{ lora.metadata.ss_network_dim }}
+                                    </span>
+                                    <span class="tag clicks-tag" title="当前搜索点击次数/总点击次数">
+                                        👆 {{ lora.search_clicks || 0 }}/{{ lora.global_clicks || 0 }}
                                     </span>
                                 </div>
                                 <div class="path">位置: {{ lora.relative_path || '根目录' }}</div>
@@ -316,5 +328,13 @@ const sortedResults = computed(() => {
 
 .sort-control select:hover {
     border-color: #bbb;
+}
+
+.clicks-tag {
+    background: #fff3e0;
+    color: #f57c00;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
 }
 </style>

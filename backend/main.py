@@ -17,6 +17,7 @@ CORS(app)
 CONFIG_PATH = os.path.join(os.path.dirname(
     os.path.abspath(__file__)), 'config.json')
 
+CLICKS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'clicks.json')
 
 def load_config():
     try:
@@ -28,16 +29,38 @@ def load_config():
         logger.error(f"Error loading config: {e}")
         return {"lora_path": ""}
 
+def load_clicks():
+    try:
+        if os.path.exists(CLICKS_PATH):
+            with open(CLICKS_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # 如果是旧格式，转换为新格式
+                if not isinstance(data, dict) or ('global' not in data and 'search' not in data):
+                    # 将旧数据迁移到新格式
+                    new_data = {
+                        "global": data if isinstance(data, dict) else {},
+                        "search": {}
+                    }
+                    # 保存新格式
+                    save_clicks(new_data)
+                    return new_data
+                return data
+        return {"global": {}, "search": {}}
+    except Exception as e:
+        logger.error(f"Error loading clicks: {e}")
+        return {"global": {}, "search": {}}
 
 def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
 
+def save_clicks(clicks):
+    with open(CLICKS_PATH, 'w', encoding='utf-8') as f:
+        json.dump(clicks, f, indent=4, ensure_ascii=False)
 
 @app.route('/config', methods=['GET'])
 def get_config():
     return jsonify(load_config())
-
 
 @app.route('/config', methods=['POST'])
 def update_config():
@@ -50,7 +73,6 @@ def update_config():
     except Exception as e:
         logger.error(f"Error updating config: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/select-folder', methods=['GET'])
 def select_folder():
@@ -71,7 +93,6 @@ def select_folder():
     except Exception as e:
         logger.error(f"Error selecting folder: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/folders', methods=['GET'])
 def get_folders():
@@ -103,7 +124,6 @@ def get_folders():
         logger.error(f"Error scanning folders: {e}")
         return jsonify({'error': str(e)}), 500
 
-
 def get_lora_metadata(file_path):
     try:
         with safe_open(file_path, framework="pt") as f:
@@ -118,7 +138,6 @@ def get_lora_metadata(file_path):
         logger.error(f"Error reading safetensors metadata: {e}")
         return {}
 
-
 def get_lora_config(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -132,7 +151,6 @@ def get_lora_config(file_path):
     except Exception as e:
         logger.error(f"Error reading lora config: {e}")
         return {}
-
 
 @app.route('/lora-files', methods=['GET'])
 def get_lora_files():
@@ -182,6 +200,7 @@ def get_lora_files():
                     'metadata': metadata,
                     'config': config_data  # 即使没有配置文件也返回空对象
                 }
+                lora_info = add_click_count_to_lora_info(lora_info)
                 lora_files.append(lora_info)
 
         return jsonify({
@@ -192,7 +211,6 @@ def get_lora_files():
     except Exception as e:
         logger.error(f"Error scanning lora files: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/preview', methods=['GET'])
 def get_preview():
@@ -215,7 +233,6 @@ def get_preview():
     except Exception as e:
         logger.error(f"Error sending preview: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/previews', methods=['GET'])
 def get_previews():
@@ -302,7 +319,6 @@ def upload_preview():
         logger.error(f"Error uploading preview: {e}")
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/update-config', methods=['POST'])
 def update_lora_config():
     try:
@@ -346,7 +362,6 @@ def update_lora_config():
     except Exception as e:
         logger.error(f"Error updating lora config: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/swap-preview', methods=['POST'])
 def swap_preview():
@@ -416,6 +431,11 @@ def swap_preview():
         logger.error(f"Error swapping preview: {e}")
         return jsonify({'error': str(e)}), 500
 
+def normalize_search_term(term):
+    """规范化搜索词格式"""
+    if not term:
+        return ''
+    return re.sub(r'[\s-]+', '_', term.lower().strip())
 
 @app.route('/scan-all-loras', methods=['GET'])
 def scan_all_loras():
@@ -427,41 +447,46 @@ def scan_all_loras():
             return jsonify({'error': 'Invalid base path'}), 404
 
         all_lora_files = []
+        search_term = normalize_search_term(request.args.get('search_term'))  # 添加搜索词参数
 
         def scan_directory(directory, relative_path=''):
-            for item in os.listdir(directory):
-                full_path = os.path.join(directory, item)
-                item_relative_path = os.path.join(relative_path, item)
+            try:
+                for item in os.listdir(directory):
+                    full_path = os.path.join(directory, item)
+                    item_relative_path = os.path.join(relative_path, item)
 
-                if os.path.isdir(full_path):
-                    # 递归扫描子目录
-                    scan_directory(full_path, item_relative_path)
-                elif item.endswith('.safetensors'):
-                    # 处理 LoRA 文件
-                    base_name = item[:-11]
-                    metadata = get_lora_metadata(full_path)
+                    if os.path.isdir(full_path):
+                        # 递归扫描子目录
+                        scan_directory(full_path, item_relative_path)
+                    elif item.endswith('.safetensors'):
+                        # 处理 LoRA 文件
+                        base_name = item[:-11]
+                        metadata = get_lora_metadata(full_path)
 
-                    # 检查相关文件
-                    preview_file = next((f for f in os.listdir(directory) if f.startswith(base_name) and f.endswith('.png')), None)
-                    config_file = next((f for f in os.listdir(directory) if f.startswith(base_name) and f.endswith('.json')), None)
+                        # 检查相关文件
+                        preview_file = next((f for f in os.listdir(directory) if f.startswith(base_name) and f.endswith('.png')), None)
+                        config_file = next((f for f in os.listdir(directory) if f.startswith(base_name) and f.endswith('.json')), None)
 
-                    # 获取配置数据
-                    config_data = {}
-                    if config_file:
-                        config_path = os.path.join(directory, config_file)
-                        config_data = get_lora_config(config_path)
+                        # 获取配置数据
+                        config_data = {}
+                        if config_file:
+                            config_path = os.path.join(directory, config_file)
+                            config_data = get_lora_config(config_path)
 
-                    lora_info = {
-                        'name': item,
-                        'base_name': base_name,
-                        'has_preview': bool(preview_file),
-                        'has_config': bool(config_file),
-                        'preview_path': f'/preview?path={relative_path}&file={preview_file}' if preview_file else None,
-                        'metadata': metadata,
-                        'config': config_data,
-                        'relative_path': relative_path  # 添加相对路径信息
-                    }
-                    all_lora_files.append(lora_info)
+                        lora_info = {
+                            'name': item,
+                            'base_name': base_name,
+                            'has_preview': bool(preview_file),
+                            'has_config': bool(config_file),
+                            'preview_path': f'/preview?path={relative_path}&file={preview_file}' if preview_file else None,
+                            'metadata': metadata,
+                            'config': config_data,
+                            'relative_path': relative_path  # 添加相对路径信息
+                        }
+                        lora_info = add_click_count_to_lora_info(lora_info, search_term)
+                        all_lora_files.append(lora_info)
+            except Exception as e:
+                logger.error(f"Error scanning directory {directory}: {e}")
 
         # 开始递归扫描
         scan_directory(base_path)
@@ -474,6 +499,62 @@ def scan_all_loras():
         logger.error(f"Error scanning all lora files: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/lora-click', methods=['POST'])  # 修正这里，使用列表而不是字典索引
+def record_lora_click():
+    try:
+        data = request.json
+        lora_name = data.get('lora_name')
+        search_term = normalize_search_term(data.get('search_term'))  # 新增搜索词参数
+        
+        if not lora_name:
+            return jsonify({'error': 'Missing lora_name'}), 400
+
+        clicks = load_clicks()
+        
+        # 更新全局点击量
+        clicks["global"][lora_name] = clicks["global"].get(lora_name, 0) + 1
+        
+        # 如果有搜索词，更新搜索相关点击量
+        if search_term:
+            if search_term not in clicks["search"]:
+                clicks["search"][search_term] = {}
+            clicks["search"][search_term][lora_name] = \
+                clicks["search"][search_term].get(lora_name, 0) + 1
+        
+        save_clicks(clicks)
+
+        return jsonify({
+            'status': 'success',
+            'global_clicks': clicks["global"][lora_name],
+            'search_clicks': clicks["search"].get(search_term, {}).get(lora_name, 0) if search_term else 0
+        })
+    except Exception as e:
+        logger.error(f"Error recording click: {e}")
+        return jsonify({'error': str(e)}), 500
+
+def add_click_count_to_lora_info(lora_info, search_term=None):
+    try:
+        clicks = load_clicks()
+        normalized_term = normalize_search_term(search_term) if search_term else None
+        
+        # 添加全局点击数
+        lora_info['global_clicks'] = clicks["global"].get(lora_info['name'], 0)
+        
+        # 添加搜索相关点击数
+        if normalized_term:
+            print(f"Adding search clicks for {lora_info['name']} with term {normalized_term}")
+            print(f"Search clicks data: {clicks['search'].get(normalized_term, {})}")
+            lora_info['search_clicks'] = clicks["search"].get(normalized_term, {}).get(lora_info['name'], 0)
+        else:
+            lora_info['search_clicks'] = 0
+            
+        print(f"Clicks for {lora_info['name']}: global={lora_info['global_clicks']}, search={lora_info['search_clicks']}")
+        return lora_info
+    except Exception as e:
+        logger.error(f"Error adding click count: {e}")
+        lora_info['global_clicks'] = 0
+        lora_info['search_clicks'] = 0
+        return lora_info
 
 if __name__ == '__main__':
     try:

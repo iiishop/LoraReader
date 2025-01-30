@@ -86,12 +86,66 @@ export function getAllLoras() {
     return Array.from(globalLoraMap.value.values())
 }
 
+// 添加记录点击的函数
+async function recordLoraClick(loraName, searchTerm = null) {
+    try {
+        const response = await fetch('http://localhost:5000/lora-click', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                lora_name: loraName,
+                search_term: searchTerm 
+            })
+        });
+        
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (err) {
+        console.error('Error recording click:', err);
+    }
+    return null;
+}
+
 // 添加全局状态管理
 export const globalState = {
     loraDetailStack: ref([]),
     imageDetailStack: ref([]), // 新增图片详情栈
 
-    openLoraDetail(lora) {
+    async openLoraDetail(lora) {
+        // 记录点击并更新所有相关状态
+        const newClicks = await recordLoraClick(
+            lora.name, 
+            lora.searchTerm // 传递搜索词
+        );
+        
+        if (newClicks !== null) {
+            // 更新点击数
+            if (lora.searchTerm) {
+                lora.search_clicks = newClicks.search_clicks;
+            }
+            lora.global_clicks = newClicks.global_clicks;
+            
+            // 更新搜索结果中相同 lora 的点击数
+            if (this.searchResults.value) {
+                const resultLora = this.searchResults.value.find(l => l.name === lora.name);
+                if (resultLora) {
+                    if (lora.searchTerm) {
+                        resultLora.search_clicks = newClicks.search_clicks;
+                    }
+                    resultLora.global_clicks = newClicks.global_clicks;
+                }
+            }
+            
+            // 更新全局映射中的点击数
+            const globalLora = allLoraMap.value.get(lora.name);
+            if (globalLora) {
+                globalLora.global_clicks = newClicks.global_clicks;
+            }
+        }
+        
         const baseZIndex = 1000;
         const stackLength = this.loraDetailStack.value.length + this.imageDetailStack.value.length;
         this.loraDetailStack.value.push({
@@ -132,8 +186,21 @@ export const globalState = {
     
     // 添加新方法
     openSearchResults(results, term) {
-        this.searchResults.value = results;
-        this.searchTerm.value = term;
+        // 先规范化搜索词
+        const normalizedTerm = normalizeSearchTerm(term);
+        this.searchTerm.value = normalizedTerm;
+        
+        // 确保每个结果都包含搜索相关的点击数
+        const resultsWithClicks = results.map(lora => ({
+            ...lora,
+            searchTerm: normalizedTerm,
+            // 注意：这里的 search_clicks 和 global_clicks 已经在 findLorasByName 中设置
+        }));
+        
+        // 按搜索点击量排序
+        resultsWithClicks.sort((a, b) => (b.search_clicks || 0) - (a.search_clicks || 0));
+        
+        this.searchResults.value = resultsWithClicks;
         this.showSearchResults.value = true;
     },
     
@@ -217,14 +284,11 @@ function levenshteinDistance(str1, str2) {
 
 // 改进的搜索函数 - 移除分页限制
 export function findLorasByName(searchTerm) {
-    console.log('Finding LoRAs by name:', searchTerm);
+    const normalizedTerm = normalizeSearchTerm(searchTerm);
+    console.log('Normalized search term:', normalizedTerm);
     
     // 清理和分割搜索词
-    const keywords = searchTerm.toLowerCase()
-        .replace(/\.safetensors$/, '')
-        .replace(/^(?:lora|lyco)_/, '')
-        .replace(/<[^>]*>/g, '')
-        .trim()
+    const keywords = normalizedTerm
         .split(/[\s-_]+/)
         .filter(k => k.length > 0);
     
@@ -257,25 +321,24 @@ export function findLorasByName(searchTerm) {
         // 计算最终分数（名称匹配占主要权重）
         const finalScore = nameScore * 0.8 + metadataScore * 0.2;
         
+        // 确保包含点击量信息
         results.push({
-            lora,
+            ...lora,  // 包含所有原始 lora 信息
             score: finalScore,
             nameScore,
-            metadataScore
+            metadataScore,
+            searchTerm: normalizedTerm  // 添加搜索词以便后续使用
         });
     }
     
-    // 只按分数排序，不限制数量
+    // 先按相关度排序
     return results
         .sort((a, b) => {
-            // 首先按名称匹配分数排序
             const scoreDiff = b.nameScore - a.nameScore;
             if (Math.abs(scoreDiff) > 0.1) return scoreDiff;
-            
-            // 名称匹配分数接近时，考虑其他因素
             return b.score - a.score;
         })
-        .map(r => r.lora);
+        .map(r => r);  // 返回完整对象而不是只返回 lora
 }
 
 // 优化元数据匹配分数计算
@@ -316,4 +379,14 @@ function calculateMetadataScore(lora, keywords) {
     }
     
     return Math.min(score, 1);
+}
+
+// 添加搜索词规范化函数
+function normalizeSearchTerm(term) {
+    return term.toLowerCase()
+        .replace(/\.safetensors$/, '')
+        .replace(/^(?:lora|lyco)_/, '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/[\s-]+/g, '_')  // 将空格和连字符统一转换为下划线
+        .trim();
 }
