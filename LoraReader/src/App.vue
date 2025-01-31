@@ -76,6 +76,11 @@ function handleModuleChange(moduleId) {
 }
 
 function handleLoraDetailClose(index) {
+    const detail = globalState.loraDetailStack.value[index];
+    if (detail?.lora?.activeFilters) {
+        // 恢复关闭前的筛选状态
+        activeFilters.value = detail.lora.activeFilters;
+    }
     globalState.closeLoraDetail(index);
 }
 

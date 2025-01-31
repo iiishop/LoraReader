@@ -235,8 +235,10 @@ async function copyActivationText(text) {
     }
 }
 
+// 添加处理关闭事件的函数
 function handleClose() {
-    emit('close');
+    // 确保关闭时保留筛选状态
+    emit('close', props.lora.activeFilters);
 }
 
 // 修改图片点击处理方法

@@ -86,7 +86,12 @@ const filteredLoraFiles = computed(() => {
 
 // 修改点击处理方法
 function handleLoraClick(lora) {
-    globalState.openLoraDetail(lora);
+    // 在打开 LoraDetail 时，传递当前的筛选状态
+    const loraWithFilters = {
+        ...lora,
+        activeFilters: props.activeFilters  // 保存当前的筛选状态
+    };
+    globalState.openLoraDetail(loraWithFilters);
 }
 
 // 移除不需要的状态和方法
