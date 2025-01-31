@@ -31,11 +31,6 @@ def ensure_combine_path():
     LORA_COMBINE_PATH = os.path.join(base_path, 'LoraCombine')
     if not os.path.exists(LORA_COMBINE_PATH):
         os.makedirs(LORA_COMBINE_PATH)
-    
-    combine_json = os.path.join(LORA_COMBINE_PATH, 'combinations.json')
-    if not os.path.exists(combine_json):
-        with open(combine_json, 'w', encoding='utf-8') as f:
-            json.dump([], f)
 
 def load_config():
     try:
@@ -577,33 +572,118 @@ def add_click_count_to_lora_info(lora_info, search_term=None):
 @app.route('/lora-combinations', methods=['GET'])
 def get_combinations():
     ensure_combine_path()
-    with open(os.path.join(LORA_COMBINE_PATH, 'combinations.json'), 'r', encoding='utf-8') as f:
-        return jsonify(json.load(f))
+    combinations = []
+    # 遍历LoraCombine目录下的所有文件夹
+    for dirname in os.listdir(LORA_COMBINE_PATH):
+        dir_path = os.path.join(LORA_COMBINE_PATH, dirname)
+        if os.path.isdir(dir_path):
+            json_path = os.path.join(dir_path, 'config.json')
+            if os.path.exists(json_path):
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    combo = json.load(f)
+                    # 添加预览图信息
+                    previews = [f for f in os.listdir(dir_path) if f.endswith('.png')]
+                    if previews:
+                        combo['preview_path'] = f'/combination-preview/{dirname}/{previews[0]}'
+                    combinations.append(combo)
+    return jsonify(combinations)
 
 @app.route('/lora-combinations', methods=['POST'])
 def create_combination():
     ensure_combine_path()
     data = request.json
     
-    # 保存组合信息
-    combinations_file = os.path.join(LORA_COMBINE_PATH, 'combinations.json')
-    with open(combinations_file, 'r+', encoding='utf-8') as f:
-        combinations = json.load(f)
-        data['id'] = str(uuid.uuid4())
-        data['created_at'] = int(time.time())
-        combinations.append(data)
-        f.seek(0)
-        f.truncate()
-        json.dump(combinations, f, indent=2, ensure_ascii=False)
+    # 生成唯一ID作为文件夹名
+    combo_id = str(uuid.uuid4())
+    combo_dir = os.path.join(LORA_COMBINE_PATH, combo_id)
+    os.makedirs(combo_dir, exist_ok=True)
     
-    # 如果有预览图，保存预览图
-    if 'preview_data' in data:
-        preview_path = os.path.join(LORA_COMBINE_PATH, f"{data['name']}.png")
-        with open(preview_path, 'wb') as f:
-            f.write(base64.b64decode(data['preview_data']))
-        del data['preview_data']
+    # 保存配置信息
+    data['id'] = combo_id
+    data['created_at'] = int(time.time())
+    with open(os.path.join(combo_dir, 'config.json'), 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
     
     return jsonify(data)
+
+@app.route('/combination-preview/<combo_id>/<filename>', methods=['GET'])
+def get_combination_preview(combo_id, filename):
+    try:
+        preview_path = os.path.join(LORA_COMBINE_PATH, combo_id, filename)
+        return send_file(preview_path, mimetype='image/png')
+    except Exception as e:
+        logger.error(f"Error sending combination preview: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/combination-preview/<combo_id>', methods=['POST'])
+def upload_combination_preview(combo_id):
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+        combo_dir = os.path.join(LORA_COMBINE_PATH, combo_id)
+        
+        if not os.path.exists(combo_dir):
+            return jsonify({'error': 'Combination not found'}), 404
+
+        # 获取现有预览图数量
+        previews = [f for f in os.listdir(combo_dir) if f.endswith('.png')]
+        if previews:
+            next_num = max([int(re.search(r'_(\d+)\.png$', f).group(1)) 
+                          for f in previews if re.search(r'_(\d+)\.png$', f)] or [0]) + 1
+            filename = f'preview_{next_num}.png'
+        else:
+            filename = 'preview.png'
+        
+        file_path = os.path.join(combo_dir, filename)
+        file.save(file_path)
+        
+        return jsonify({
+            'status': 'success',
+            'preview_path': f'/combination-preview/{combo_id}/{filename}'
+        })
+    except Exception as e:
+        logger.error(f"Error uploading combination preview: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/combination-previews/<combo_id>', methods=['GET'])
+def get_combination_previews(combo_id):
+    try:
+        combo_dir = os.path.join(LORA_COMBINE_PATH, combo_id)
+        if not os.path.exists(combo_dir):
+            return jsonify({'error': 'Combination not found'}), 404
+            
+        previews = sorted([f'/combination-preview/{combo_id}/{f}' 
+                        for f in os.listdir(combo_dir) 
+                        if f.endswith('.png')],
+                        key=lambda x: 'preview.png' in x)
+        
+        return jsonify({'previews': previews})
+    except Exception as e:
+        logger.error(f"Error getting combination previews: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/combination-preview/<combo_id>/<filename>', methods=['DELETE'])
+def delete_combination_preview(combo_id, filename):
+    try:
+        preview_path = os.path.join(LORA_COMBINE_PATH, combo_id, filename)
+        if not os.path.exists(preview_path):
+            return jsonify({'error': 'Preview not found'}), 404
+            
+        # 不允许删除最后一张预览图
+        combo_dir = os.path.join(LORA_COMBINE_PATH, combo_id)
+        previews = [f for f in os.listdir(combo_dir) if f.endswith('.png')]
+        if len(previews) <= 1:
+            return jsonify({'error': 'Cannot delete the last preview'}), 400
+            
+        # 删除文件
+        os.remove(preview_path)
+        
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        logger.error(f"Error deleting combination preview: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     try:
