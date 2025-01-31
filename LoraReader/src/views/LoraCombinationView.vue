@@ -41,6 +41,11 @@ async function handleCombinationCreated(combination) {
     await loadCombinations();
     showAddPanel.value = false;
 }
+
+async function handleCombinationDeleted() {
+    await loadCombinations();  // 重新加载组合列表
+    selectedCombination.value = null;  // 关闭详情面板
+}
 </script>
 
 <template>
@@ -79,6 +84,7 @@ async function handleCombinationCreated(combination) {
             :combination="selectedCombination"
             :show="true"
             @close="selectedCombination = null"
+            @deleted="handleCombinationDeleted"
         />
     </div>
 </template>

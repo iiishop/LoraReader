@@ -10,7 +10,7 @@ const props = defineProps({
     show: Boolean
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'deleted']); // 添加新的事件
 const showFullscreen = ref(false);
 const selectedPreviewIndex = ref(0);
 const previewList = ref([]);
@@ -174,12 +174,37 @@ async function handleDeletePreview(preview) {
     }
 }
 
+async function handleDelete() {
+    if (!confirm('确定要删除这个组合吗？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`http://localhost:5000/lora-combinations/${props.combination.id}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error('删除失败');
+        }
+
+        // 成功删除后发出事件并关闭面板
+        emit('deleted');
+        emit('close');
+    } catch (error) {
+        console.error('删除组合失败:', error);
+        alert('删除失败: ' + error.message);
+    }
+}
 </script>
 
 <template>
     <Transition name="fade">
         <div v-if="show" class="combine-detail-overlay" @click="$emit('close')">
             <div class="detail-card" @click.stop>
+                <div class="actions-bar">
+                    <button class="delete-btn" @click="handleDelete">删除组合</button>
+                </div>
                 <button class="close-btn" @click="$emit('close')">×</button>
                 
                 <div class="content-wrapper">
@@ -709,5 +734,29 @@ async function handleDeletePreview(preview) {
 .delete-preview-btn:hover {
     background: rgba(255, 0, 0, 1);
     transform: scale(1.1);
+}
+
+.actions-bar {
+    position: absolute;
+    top: 1rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.delete-btn {
+    background: #dc3545;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.delete-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
 }
 </style>

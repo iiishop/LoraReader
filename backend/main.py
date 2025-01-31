@@ -685,6 +685,22 @@ def delete_combination_preview(combo_id, filename):
         logger.error(f"Error deleting combination preview: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/lora-combinations/<combo_id>', methods=['DELETE'])
+def delete_combination(combo_id):
+    try:
+        combo_dir = os.path.join(LORA_COMBINE_PATH, combo_id)
+        if not os.path.exists(combo_dir):
+            return jsonify({'error': 'Combination not found'}), 404
+            
+        # 删除目录及其所有内容
+        import shutil
+        shutil.rmtree(combo_dir)
+        
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        logger.error(f"Error deleting combination: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     try:
         logger.info("Starting Flask server...")        
