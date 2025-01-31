@@ -125,8 +125,9 @@ def get_folders():
         if not os.path.realpath(current_path).startswith(os.path.realpath(base_path)):
             return jsonify({'error': 'Invalid path'}), 403
 
+        # 获取文件夹列表并过滤掉 LoraCombine
         folders = [d for d in os.listdir(current_path)
-                   if os.path.isdir(os.path.join(current_path, d))]
+                  if os.path.isdir(os.path.join(current_path, d)) and d != 'LoraCombine']
 
         return jsonify({
             'folders': folders,
