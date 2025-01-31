@@ -7,6 +7,9 @@ import os
 import json
 import re
 from safetensors import safe_open
+import uuid
+import time
+import base64
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,6 +21,21 @@ CONFIG_PATH = os.path.join(os.path.dirname(
     os.path.abspath(__file__)), 'config.json')
 
 CLICKS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'clicks.json')
+
+LORA_COMBINE_PATH = None
+
+def ensure_combine_path():
+    global LORA_COMBINE_PATH
+    config = load_config()
+    base_path = config.get('lora_path', '')
+    LORA_COMBINE_PATH = os.path.join(base_path, 'LoraCombine')
+    if not os.path.exists(LORA_COMBINE_PATH):
+        os.makedirs(LORA_COMBINE_PATH)
+    
+    combine_json = os.path.join(LORA_COMBINE_PATH, 'combinations.json')
+    if not os.path.exists(combine_json):
+        with open(combine_json, 'w', encoding='utf-8') as f:
+            json.dump([], f)
 
 def load_config():
     try:
@@ -555,6 +573,37 @@ def add_click_count_to_lora_info(lora_info, search_term=None):
         lora_info['global_clicks'] = 0
         lora_info['search_clicks'] = 0
         return lora_info
+
+@app.route('/lora-combinations', methods=['GET'])
+def get_combinations():
+    ensure_combine_path()
+    with open(os.path.join(LORA_COMBINE_PATH, 'combinations.json'), 'r', encoding='utf-8') as f:
+        return jsonify(json.load(f))
+
+@app.route('/lora-combinations', methods=['POST'])
+def create_combination():
+    ensure_combine_path()
+    data = request.json
+    
+    # 保存组合信息
+    combinations_file = os.path.join(LORA_COMBINE_PATH, 'combinations.json')
+    with open(combinations_file, 'r+', encoding='utf-8') as f:
+        combinations = json.load(f)
+        data['id'] = str(uuid.uuid4())
+        data['created_at'] = int(time.time())
+        combinations.append(data)
+        f.seek(0)
+        f.truncate()
+        json.dump(combinations, f, indent=2, ensure_ascii=False)
+    
+    # 如果有预览图，保存预览图
+    if 'preview_data' in data:
+        preview_path = os.path.join(LORA_COMBINE_PATH, f"{data['name']}.png")
+        with open(preview_path, 'wb') as f:
+            f.write(base64.b64decode(data['preview_data']))
+        del data['preview_data']
+    
+    return jsonify(data)
 
 if __name__ == '__main__':
     try:
