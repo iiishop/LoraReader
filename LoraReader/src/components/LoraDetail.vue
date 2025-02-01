@@ -31,6 +31,10 @@ const isEditing = ref(false);
 const editedConfig = ref(null);
 const showCopySuccess = ref(false);
 
+// 添加基础模型列表状态
+const baseModels = ref([]);
+const selectedBaseModel = ref('');
+
 // 重置状态的函数
 function resetState() {
     currentPreviewIndex.value = 0;
@@ -56,6 +60,7 @@ onMounted(async () => {
     if (props.lora.has_preview) {
         await loadPreviews();
     }
+    loadBaseModels();
 });
 
 async function loadPreviews() {
@@ -184,18 +189,39 @@ function handleDragOver(e) {
     e.preventDefault();
 }
 
+// 添加获取基础模型列表的函数
+async function loadBaseModels() {
+    try {
+        const response = await fetch('http://localhost:5000/base-models');
+        if (response.ok) {
+            baseModels.value = await response.json();
+        }
+    } catch (error) {
+        console.error('Error loading base models:', error);
+    }
+}
+
+// 修改编辑模式初始化
 function startEditing() {
     editedConfig.value = {
         activation_text: props.lora.config?.activation_text || '',
         preferred_weight: props.lora.config?.preferred_weight || 0,
         notes: props.lora.config?.notes || '',
-        description: props.lora.config?.description || ''
+        description: props.lora.config?.description || '',
+        base_model: props.lora.config?.base_model || props.lora.metadata?.base_model || ''
     };
+    selectedBaseModel.value = editedConfig.value.base_model;
     isEditing.value = true;
 }
 
+// 修改保存配置函数
 async function saveConfig() {
     try {
+        const configToSave = {
+            ...editedConfig.value,
+            base_model: selectedBaseModel.value
+        };
+        
         const response = await fetch('http://localhost:5000/update-config', {
             method: 'POST',
             headers: {
@@ -204,15 +230,18 @@ async function saveConfig() {
             body: JSON.stringify({
                 path: props.currentPath,
                 lora_name: props.lora.base_name,
-                config: editedConfig.value
+                config: configToSave
             })
         });
 
         if (response.ok) {
             const result = await response.json();
-            // 更新本地状态
-            props.lora.config = { ...editedConfig.value };
-            props.lora.has_config = result.has_config; // 添加这行
+            props.lora.config = configToSave;
+            props.lora.has_config = result.has_config;
+            // 更新元数据中的基础模型（最高优先级）
+            if (props.lora.metadata) {
+                props.lora.metadata.base_model = selectedBaseModel.value;
+            }
             isEditing.value = false;
         } else {
             alert('保存失败');
@@ -338,6 +367,23 @@ watch(() => props.show, (newVal) => {
                             <div class="metadata-item">
                                 <span class="label">Alpha</span>
                                 <span class="value">{{ lora.metadata?.ss_network_alpha || 'N/A' }}</span>
+                            </div>
+
+                            <div class="metadata-item">
+                                <span class="label">基础模型</span>
+                                <template v-if="isEditing">
+                                    <select v-model="selectedBaseModel" class="model-select">
+                                        <option value="">-- 选择基础模型 --</option>
+                                        <option v-for="model in baseModels" 
+                                                :key="model" 
+                                                :value="model">
+                                            {{ model }}
+                                        </option>
+                                    </select>
+                                </template>
+                                <span v-else class="value">
+                                    {{ lora.config?.base_model || lora.metadata?.base_model || 'Unknown' }}
+                                </span>
                             </div>
                         </div>
 
@@ -468,4 +514,31 @@ watch(() => props.show, (newVal) => {
 }
 
 /* ...rest of existing styles... */
+
+.model-select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    color: #333;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.model-select:hover {
+    border-color: #4a90e2;
+}
+
+.model-select:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+    outline: none;
+}
+
+.value.custom {
+    color: #4a90e2;
+    font-weight: 500;
+}
 </style>

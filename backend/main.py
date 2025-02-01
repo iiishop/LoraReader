@@ -332,6 +332,21 @@ def get_lora_metadata(file_path):
         logger.error(f"Error reading safetensors metadata: {e}")
         return {}
 
+# 添加预设的基础模型列表
+BASE_MODELS = [
+    'SDXL-Base',
+    'SDXL-Turbo',
+    'SDXL-Lightning',
+    'SDXL-Illustrious',
+    'SDXL-AnimalPony',
+    'SDXL-Juggernaut',
+    'SDXL-Reborn',
+    'SD1.5',
+    'SD1.5-Anything',
+    'SD2.0',
+    'SD2.1'
+]
+
 def get_lora_config(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -340,11 +355,17 @@ def get_lora_config(file_path):
                 'activation_text': config.get('activation text', ''),
                 'preferred_weight': config.get('preferred weight', 0),
                 'notes': config.get('notes', ''),
-                'description': config.get('description', '')
+                'description': config.get('description', ''),
+                'base_model': config.get('base_model', '')  # 添加基础模型配置
             }
     except Exception as e:
         logger.error(f"Error reading lora config: {e}")
         return {}
+
+@app.route('/base-models', methods=['GET'])
+def get_base_models():
+    """获取预设的基础模型列表"""
+    return jsonify(BASE_MODELS)
 
 @app.route('/lora-files', methods=['GET'])
 def get_lora_files():
@@ -538,7 +559,8 @@ def update_lora_config():
             'sd version': 'SDXL',  # 添加默认的SD版本信息
             'activation text': config.get('activation_text', ''),
             'preferred weight': config.get('preferred_weight', 0),
-            'notes': config.get('notes', '')
+            'notes': config.get('notes', ''),
+            'base_model': config.get('base_model', '')  # 添加基础模型
         }
 
         # 如果目录不存在则创建
