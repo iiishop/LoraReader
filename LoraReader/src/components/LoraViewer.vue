@@ -34,6 +34,10 @@ const error = ref('');
 const loading = ref(false);
 const searchQuery = ref('');
 
+// 添加排序相关的响应式变量
+const sortBy = ref('name');  // 'name' | 'created' | 'modified'
+const sortOrder = ref('asc'); // 'asc' | 'desc'
+
 const filteredLoraFiles = computed(() => {
     console.log('开始筛选，当前文件数:', Array.from(globalLoraMap.value.values()).length);
     let result = Array.from(globalLoraMap.value.values());
@@ -88,6 +92,25 @@ const filteredLoraFiles = computed(() => {
             return filters.alphas.includes(alpha);
         });
     }
+
+    // 添加排序逻辑
+    result.sort((a, b) => {
+        let compareValue;
+        switch (sortBy.value) {
+            case 'name':
+                compareValue = a.name.localeCompare(b.name);
+                break;
+            case 'created':
+                compareValue = (a.metadata?.created_time || 0) - (b.metadata?.created_time || 0);
+                break;
+            case 'modified':
+                compareValue = (a.metadata?.modified_time || 0) - (b.metadata?.modified_time || 0);
+                break;
+            default:
+                compareValue = 0;
+        }
+        return sortOrder.value === 'asc' ? compareValue : -compareValue;
+    });
 
     console.log('筛选后文件数:', result.length);
     return result;
@@ -174,6 +197,16 @@ const refreshLoraFiles = () => {
 watch(() => props.currentPath, (newPath) => {
     loadLoraFiles(newPath);
 }, { immediate: true });
+
+// 添加切换排序的方法
+function toggleSort(field) {
+    if (sortBy.value === field) {
+        sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortBy.value = field;
+        sortOrder.value = 'asc';
+    }
+}
 </script>
 
 <template>
@@ -181,13 +214,47 @@ watch(() => props.currentPath, (newPath) => {
         'list-collapsed': !isExpanded,
         'filter-collapsed': !isFilterExpanded 
     }">
-        <div class="search-container">
-            <input 
-                type="text" 
-                v-model="searchQuery"
-                placeholder="搜索 Lora..."
-                class="search-input"
-            />
+        <div class="header-controls">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    v-model="searchQuery"
+                    placeholder="搜索 Lora..."
+                    class="search-input"
+                />
+            </div>
+            <div class="sort-controls">
+                <button 
+                    @click="toggleSort('name')"
+                    :class="{ active: sortBy === 'name' }"
+                    class="sort-btn"
+                >
+                    文件名
+                    <span class="sort-indicator" v-if="sortBy === 'name'">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                    </span>
+                </button>
+                <button 
+                    @click="toggleSort('created')"
+                    :class="{ active: sortBy === 'created' }"
+                    class="sort-btn"
+                >
+                    创建时间
+                    <span class="sort-indicator" v-if="sortBy === 'created'">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                    </span>
+                </button>
+                <button 
+                    @click="toggleSort('modified')"
+                    :class="{ active: sortBy === 'modified' }"
+                    class="sort-btn"
+                >
+                    修改时间
+                    <span class="sort-indicator" v-if="sortBy === 'modified'">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                    </span>
+                </button>
+            </div>
         </div>
         
         <div v-if="loading" class="loading">
@@ -356,31 +423,70 @@ watch(() => props.currentPath, (newPath) => {
     text-align: center;
 }
 
-.search-container {
+.header-controls {
     position: fixed;
     top: 0;
-    left: 300px;  /* 与侧边栏宽度对应 */
-    right: 300px;  
+    left: 300px;
+    right: 300px;
     z-index: 100;
     background: white;
     padding: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
-    justify-content: center;
-    transition: all 0.3s ease;  /* 添加过渡效果 */
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
 }
 
-.list-collapsed .search-container {
-    left: 40px;  /* 当侧边栏收起时调整位置 */
+.sort-controls {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
 }
 
-.filter-collapsed .search-container {
+.sort-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sort-btn:hover {
+    background: #f5f5f5;
+}
+
+.sort-btn.active {
+    background: #e3f2fd;
+    border-color: #1976d2;
+    color: #1976d2;
+}
+
+.sort-indicator {
+    font-weight: bold;
+}
+
+/* 调整现有的响应式样式 */
+.list-collapsed .header-controls {
+    left: 40px;
+}
+
+.filter-collapsed .header-controls {
     right: 40px;
 }
 
-.list-collapsed.filter-collapsed .search-container {
+.list-collapsed.filter-collapsed .header-controls {
     left: 40px;
     right: 40px;
+}
+
+.search-container {
+    display: flex;
+    justify-content: center;
 }
 
 .search-input {

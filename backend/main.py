@@ -225,6 +225,14 @@ def get_base_model_from_comment(comment):
     
     return None
 
+def get_file_info(file_path):
+    """获取文件的创建时间和修改时间"""
+    stats = os.stat(file_path)
+    return {
+        'created_time': int(stats.st_ctime),
+        'modified_time': int(stats.st_mtime)
+    }
+
 def get_lora_metadata(file_path):
     try:
         with safe_open(file_path, framework="pt") as f:
@@ -304,6 +312,9 @@ def get_lora_metadata(file_path):
             if model_scores:
                 logger.info(f"Model scores for {file_name}: {model_scores}")
 
+            # 获取文件时间信息
+            file_times = get_file_info(file_path)
+
             return {
                 'ss_base_model_version': metadata.get('ss_base_model_version', 'Unknown'),
                 'ss_network_module': metadata.get('ss_network_module', ''),
@@ -312,7 +323,9 @@ def get_lora_metadata(file_path):
                 'ss_training_comment': metadata.get('ss_training_comment', ''),
                 'base_model': base_model,
                 'model_info': model_info,
-                'model_scores': model_scores  # 可选：添加分数信息用于调试
+                'model_scores': model_scores,  # 可选：添加分数信息用于调试
+                'created_time': file_times['created_time'],  # 添加创建时间
+                'modified_time': file_times['modified_time']  # 添加修改时间
             }
 
     except Exception as e:
