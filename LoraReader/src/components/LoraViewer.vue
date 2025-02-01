@@ -38,6 +38,17 @@ const searchQuery = ref('');
 const sortBy = ref('name');  // 'name' | 'created' | 'modified'
 const sortOrder = ref('asc'); // 'asc' | 'desc'
 
+// 添加视图模式状态
+const viewMode = ref('grid'); // 'grid' | 'gallery'
+const viewModes = [
+    { id: 'grid', icon: '⊞', label: '网格视图' },
+    { id: 'gallery', icon: '🖼️', label: '画廊视图' }
+];
+
+function toggleViewMode() {
+    viewMode.value = viewMode.value === 'grid' ? 'gallery' : 'grid';
+}
+
 const filteredLoraFiles = computed(() => {
     console.log('开始筛选，当前文件数:', Array.from(globalLoraMap.value.values()).length);
     let result = Array.from(globalLoraMap.value.values());
@@ -212,16 +223,25 @@ function toggleSort(field) {
 <template>
     <div class="lora-viewer" :class="{ 
         'list-collapsed': !isExpanded,
-        'filter-collapsed': !isFilterExpanded 
+        'filter-collapsed': !isFilterExpanded,
+        [`view-${viewMode}`]: true
     }">
         <div class="header-controls">
-            <div class="search-container">
+            <div class="search-section">
                 <input 
                     type="text" 
                     v-model="searchQuery"
                     placeholder="搜索 Lora..."
                     class="search-input"
                 />
+                <button 
+                    class="view-mode-toggle"
+                    :class="{ active: viewMode === 'gallery' }"
+                    @click="toggleViewMode"
+                    :title="viewMode === 'grid' ? '切换到画廊视图' : '切换到网格视图'"
+                >
+                    {{ viewMode === 'grid' ? '🖼️' : '⊞' }}
+                </button>
             </div>
             <div class="sort-controls">
                 <button 
@@ -265,23 +285,25 @@ function toggleSort(field) {
         </div>
         <TransitionGroup 
             v-else 
-            tag="div" 
-            class="lora-grid"
+            :tag="viewMode === 'grid' ? 'div' : 'div'"
+            :class="['lora-container', `layout-${viewMode}`]"
             @before-enter="onBeforeEnter"
             @enter="onEnter"
             @leave="onLeave"
         >
             <div v-for="lora in filteredLoraFiles" 
                  :key="lora.name" 
-                 class="lora-card"
+                 :class="['lora-item', `item-${viewMode}`]"
                  @click="handleLoraClick(lora)">
-                <div class="preview">
-                    <img v-if="lora.has_preview" :src="`http://localhost:5000${lora.preview_path}`" :alt="lora.name" />
-                    <div v-else class="no-preview">
-                        无预览图
-                    </div>
+                <div :class="['preview', `preview-${viewMode}`]">
+                    <img v-if="lora.has_preview" 
+                         :src="`http://localhost:5000${lora.preview_path}`" 
+                         :alt="lora.name"
+                         loading="lazy"
+                    />
+                    <div v-else class="no-preview">无预览图</div>
                 </div>
-                <div class="info">
+                <div :class="['info', `info-${viewMode}`]">
                     <div class="name">{{ lora.name.replace('.safetensors', '') }}</div>
                     <div class="metadata" v-if="lora.metadata">
                         <span class="model-tag">{{ lora.metadata.base_model }}</span>
@@ -297,16 +319,10 @@ function toggleSort(field) {
                             </span>
                         </div>
                     </div>
-                    <div class="badges">
-                        <span class="badge" title="配置文件">
-                            {{ lora.has_config ? '📄' : '❌' }}
-                        </span>
-                    </div>
                 </div>
             </div>
         </TransitionGroup>
         
-        <!-- 移除 LoraDetail 组件 -->
         <button class="refresh-btn" @click="refreshLoraFiles">🔄</button>
     </div>
 </template>
@@ -540,5 +556,174 @@ function toggleSort(field) {
     border-radius: 4px;
     font-size: 0.8rem;
     margin-right: 0.5rem;
+}
+
+/* 新增样式 */
+.search-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.view-mode-toggle {
+    padding: 0.8rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+}
+
+.view-mode-toggle:hover {
+    background: #f5f5f5;
+    transform: translateY(-2px);
+}
+
+.view-mode-toggle.active {
+    background: #e3f2fd;
+    border-color: #1976d2;
+    color: #1976d2;
+}
+
+/* Grid Mode Styles */
+.layout-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.item-grid {
+    height: 300px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.preview-grid {
+    height: 200px;
+    background: #f8f9fa;
+    overflow: hidden;
+}
+
+.preview-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.item-grid:hover .preview-grid img {
+    transform: scale(1.05);
+}
+
+/* Gallery Mode Styles */
+.layout-gallery {
+    columns: 4 240px;
+    column-gap: 1rem;
+    padding: 1rem;
+}
+
+.item-gallery {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.preview-gallery {
+    width: 100%;
+    position: relative;
+    background: #f8f9fa;
+}
+
+.preview-gallery img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.info-gallery {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.95);
+    transition: transform 0.3s ease;
+}
+
+.item-gallery:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.item-gallery:hover .info-gallery {
+    transform: translateY(-4px);
+}
+
+/* Animation Styles */
+.layout-gallery .item-gallery {
+    animation: fadeInUp 0.6s ease forwards;
+    opacity: 0;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hover Effects */
+.item-gallery::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.item-gallery:hover::after {
+    opacity: 1;
+}
+
+/* Loading Animation */
+.preview-gallery.loading::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .layout-gallery {
+        columns: 2 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .layout-gallery {
+        columns: 1 100%;
+    }
 }
 </style>
