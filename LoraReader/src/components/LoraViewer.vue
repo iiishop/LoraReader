@@ -592,35 +592,101 @@ function toggleSort(field) {
 /* Grid Mode Styles */
 .layout-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
-    padding: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); /* 略微增加最小宽度 */
+    gap: 1.5rem; /* 增加间距 */
+    padding: 1.5rem;
 }
 
 .item-grid {
-    height: 300px;
+    display: flex;
+    flex-direction: column;
+    height: auto;  /* 改为自适应高度 */
+    min-height: 300px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: all 0.3s ease;
 }
 
 .preview-grid {
-    height: 200px;
+    flex: 0 0 200px; /* 固定预览图高度 */
     background: #f8f9fa;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
 }
 
 .preview-grid img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     transition: transform 0.3s ease;
 }
 
-.item-grid:hover .preview-grid img {
-    transform: scale(1.05);
+.info-grid {
+    flex: 1;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: hidden; /* 防止内容溢出 */
+}
+
+.name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+}
+
+.model-tag, .version-tag {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.model-tag {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.version-tag {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.metadata-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.3rem;
+}
+
+.detail-tag {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    background-color: #f5f5f5;
+    color: #666;
+    border-radius: 4px;
+    white-space: nowrap;
 }
 
 /* Gallery Mode Styles */
@@ -715,6 +781,20 @@ function toggleSort(field) {
 }
 
 /* Responsive Adjustments */
+@media (max-width: 1200px) {
+    .layout-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .layout-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+        padding: 1rem;
+    }
+}
+
 @media (max-width: 768px) {
     .layout-gallery {
         columns: 2 200px;
