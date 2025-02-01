@@ -19,7 +19,8 @@ const metadata = computed(() => {
     const result = {
         versions: new Set(),
         dims: new Set(),
-        alphas: new Set()
+        alphas: new Set(),
+        baseModels: new Set()  // 添加基础模型集合
     };
     console.log(props.loraFiles);
     props.loraFiles.forEach(lora => {
@@ -33,13 +34,17 @@ const metadata = computed(() => {
             if (lora.metadata.ss_network_alpha) {
                 result.alphas.add(lora.metadata.ss_network_alpha);
             }
+            if (lora.metadata.base_model) {
+                result.baseModels.add(lora.metadata.base_model);
+            }
         }
     });
 
     return {
         versions: Array.from(result.versions).sort(),
         dims: Array.from(result.dims).sort((a, b) => Number(a) - Number(b)),
-        alphas: Array.from(result.alphas).sort((a, b) => Number(a) - Number(b))
+        alphas: Array.from(result.alphas).sort((a, b) => Number(a) - Number(b)),
+        baseModels: Array.from(result.baseModels).sort()  // 添加基础模型数组
     };
 });
 
@@ -47,7 +52,8 @@ const metadata = computed(() => {
 const selectedFilters = ref({
     versions: new Set(),
     dims: new Set(),
-    alphas: new Set()
+    alphas: new Set(),
+    baseModels: new Set()  // 添加基础模型筛选
 });
 
 // 修改 emitFilterChange 函数添加更多日志
@@ -55,9 +61,10 @@ function emitFilterChange() {
     const filters = {
         versions: Array.from(selectedFilters.value.versions),
         dims: Array.from(selectedFilters.value.dims),
-        alphas: Array.from(selectedFilters.value.alphas)
+        alphas: Array.from(selectedFilters.value.alphas),
+        baseModels: Array.from(selectedFilters.value.baseModels) // 添加基础模型筛选
     };
-    console.log('Emitting filters from FilterSidebar:', filters);
+    console.log('Emitting filters:', filters);
     emit('filter-change', filters);
 }
 
@@ -66,21 +73,24 @@ watch(() => props.loraFiles, () => {
     selectedFilters.value = {
         versions: new Set(),
         dims: new Set(),
-        alphas: new Set()
+        alphas: new Set(),
+        baseModels: new Set()
     };
     emitFilterChange();
 }, { deep: true });
 
-// 移除 toggleFilter 函数，改用 watch 监听 selectedFilters
-watch(selectedFilters, (newVal) => {
-    emitFilterChange();
-}, { deep: true });
+// 替换原有的 watch，分开处理每种筛选条件
+watch(() => selectedFilters.value.versions, () => emitFilterChange(), { deep: true });
+watch(() => selectedFilters.value.dims, () => emitFilterChange(), { deep: true });
+watch(() => selectedFilters.value.alphas, () => emitFilterChange(), { deep: true });
+watch(() => selectedFilters.value.baseModels, () => emitFilterChange(), { deep: true });
 
 // 添加筛选项计数
 const filterCounts = computed(() => ({
     versions: selectedFilters.value.versions.size,
     dims: selectedFilters.value.dims.size,
-    alphas: selectedFilters.value.alphas.size
+    alphas: selectedFilters.value.alphas.size,
+    baseModels: selectedFilters.value.baseModels.size
 }));
 
 // 清除所有筛选
@@ -88,7 +98,8 @@ function clearAllFilters() {
     selectedFilters.value = {
         versions: new Set(),
         dims: new Set(),
-        alphas: new Set()
+        alphas: new Set(),
+        baseModels: new Set()
     };
     emitFilterChange();
 }
@@ -105,7 +116,7 @@ function clearAllFilters() {
             <div class="filter-header">
                 <h2>筛选</h2>
                 <button 
-                    v-if="filterCounts.versions + filterCounts.dims + filterCounts.alphas > 0"
+                    v-if="filterCounts.versions + filterCounts.dims + filterCounts.alphas + filterCounts.baseModels > 0"
                     class="clear-all-btn"
                     @click="clearAllFilters"
                 >
@@ -179,6 +190,33 @@ function clearAllFilters() {
                             :value="alpha"
                         >
                         <span>{{ alpha }}</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 添加基础模型筛选部分 -->
+            <div class="filter-section" v-if="metadata.baseModels.length">
+                <div class="section-header">
+                    <h3>基础模型</h3>
+                    <span class="count-badge" v-if="filterCounts.baseModels">
+                        {{ filterCounts.baseModels }}/{{ metadata.baseModels.length }}
+                    </span>
+                </div>
+                <div class="filter-group">
+                    <label v-for="model in metadata.baseModels" :key="model">
+                        <input 
+                            type="checkbox"
+                            :value="model"
+                            :checked="selectedFilters.baseModels.has(model)"
+                            @change="e => {
+                                if (e.target.checked) {
+                                    selectedFilters.baseModels.add(model)
+                                } else {
+                                    selectedFilters.baseModels.delete(model)
+                                }
+                            }"
+                        >
+                        <span class="checkbox-label">{{ model }}</span>
                     </label>
                 </div>
             </div>

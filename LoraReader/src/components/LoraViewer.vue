@@ -50,8 +50,17 @@ const filteredLoraFiles = computed(() => {
     const filters = {
         versions: props.activeFilters.versions || [],
         dims: props.activeFilters.dims || [],
-        alphas: props.activeFilters.alphas || []
+        alphas: props.activeFilters.alphas || [],
+        baseModels: props.activeFilters.baseModels || []  // 添加基础模型筛选
     };
+
+    // 基础模型筛选
+    if (filters.baseModels.length > 0) {
+        result = result.filter(lora => {
+            const baseModel = lora.metadata?.base_model;
+            return filters.baseModels.includes(baseModel);
+        });
+    }
 
     // 版本筛选
     if (filters.versions.length > 0) {
@@ -208,6 +217,7 @@ watch(() => props.currentPath, (newPath) => {
                 <div class="info">
                     <div class="name">{{ lora.name.replace('.safetensors', '') }}</div>
                     <div class="metadata" v-if="lora.metadata">
+                        <span class="model-tag">{{ lora.metadata.base_model }}</span>
                         <span class="version-tag">
                             SD {{ lora.metadata.ss_base_model_version || 'Unknown' }}
                         </span>
@@ -414,5 +424,15 @@ watch(() => props.currentPath, (newPath) => {
 
 .refresh-btn:active {
     transform: scale(0.9);
+}
+
+.model-tag {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    background-color: #e8f5e9;  /* 使用不同的颜色区分基础模型标签 */
+    color: #2e7d32;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin-right: 0.5rem;
 }
 </style>

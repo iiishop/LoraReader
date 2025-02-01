@@ -138,16 +138,183 @@ def get_folders():
         logger.error(f"Error scanning folders: {e}")
         return jsonify({'error': str(e)}), 500
 
+def get_base_model_from_name(model_name):
+    """从模型名称中提取基础模型信息"""
+    name = model_name.lower()
+    
+    # SDXL 模型系列
+    if any(x in name for x in ['xl', 'sdxl']):
+        # Illustrious 系列 - 添加更多匹配规则，包括 IL 前缀和后缀
+        if any(x in name for x in [
+            'illustrious', 'illust', 'illus-', 'illus_', '_ill', '_ill.',
+            'ill.safetensors', 'ill_', '-ill', 'il-', '-il', '_il',
+            'il.safetensors', 'il_', 'il.'
+        ]) or name.startswith(('il-', 'il_')) or name.endswith(('_il', '-il', '.il')):
+            return 'SDXL-Illustrious'
+        # Pony 系列
+        elif any(x in name for x in ['pony', 'animepastel', 'anime_pastel']):
+            return 'SDXL-AnimalPony'
+        # 其他 SDXL 变体
+        elif 'juggernaut' in name:
+            return 'SDXL-Juggernaut'
+        elif 'turbo' in name:
+            return 'SDXL-Turbo'
+        elif 'lightning' in name:
+            return 'SDXL-Lightning'
+        elif 'reborn' in name:
+            return 'SDXL-Reborn'
+    
+    # 检查特殊后缀和前缀，即使文件名中没有明确的 SDXL 标识
+    if (any(x in name for x in ['_ill', '_ill.', 'ill.safetensors', '_ill_', '-ill', 'il-', '-il', '_il']) or 
+        name.startswith(('il-', 'il_')) or 
+        name.endswith(('_il', '-il', '.il'))):
+        return 'SDXL-Illustrious'
+    
+    return None
+
+def get_base_model_from_comment(comment):
+    """从训练注释中提取基础模型信息"""
+    comment = comment.lower()
+    
+    # SDXL 模型系列
+    if any(x in comment for x in ['xl', 'sdxl']):
+        # Pony 系列检查
+        if any(x in comment for x in [
+            'pony', 'animepastel', 'anime pastel', 'anime_pastel',
+            'animalspastel', 'animals pastel', 'animals_pastel'
+        ]):
+            return 'SDXL-AnimalPony'
+        
+        # Illustrious 系列检查
+        elif any(x in comment for x in [
+            'illustrious', 'illust', 'illus-', 'illus_',
+            'illustr-', 'illustr_', 'illustrated'
+        ]):
+            return 'SDXL-Illustrious'
+        
+        # 其他 SDXL 变体
+        elif 'juggernaut' in comment:
+            return 'SDXL-Juggernaut'
+        elif 'turbo' in comment:
+            return 'SDXL-Turbo'
+        elif 'lightning' in comment:
+            return 'SDXL-Lightning'
+        elif 'reborn' in comment:
+            return 'SDXL-Reborn'
+        elif any(x in comment for x in ['base', 'basic', 'original']):
+            return 'SDXL-Base'
+        return 'SDXL'
+    
+    # SD 1.5 系列
+    elif any(x in comment for x in ['sd15', 'sd1.5', 'sd 1.5']):
+        if 'anything' in comment:
+            if 'v4.5' in comment:
+                return 'SD1.5-AnythingV4.5'
+            elif 'v5' in comment:
+                return 'SD1.5-AnythingV5'
+            return 'SD1.5-Anything'
+        elif 'vae' in comment:
+            return 'SD1.5-VAE'
+        return 'SD1.5'
+    
+    # SD 2.x 系列
+    elif 'sd21' in comment or 'sd2.1' in comment:
+        return 'SD2.1'
+    elif 'sd20' in comment or 'sd2.0' in comment:
+        return 'SD2.0'
+    
+    return None
+
 def get_lora_metadata(file_path):
     try:
         with safe_open(file_path, framework="pt") as f:
             metadata = f.metadata()
+            
+            base_model = None
+            model_info = []
+            model_scores = {}  # 用于存储每个模型类型的可信度分数
+            
+            file_name = os.path.basename(file_path)
+            file_path_lower = file_path.lower()
+            dir_name = os.path.basename(os.path.dirname(file_path)).lower()
+            
+            # 1. 首先检查训练注释（最高优先级）
+            if 'ss_training_comment' in metadata:
+                comment = metadata['ss_training_comment'].lower()
+                # Pony检查
+                if any(x in comment for x in [
+                    'pony', 'animepastel', 'anime pastel', 'anime_pastel',
+                    'animalspastel', 'animals pastel', 'animals_pastel'
+                ]):
+                    model_scores['SDXL-AnimalPony'] = 100
+                # Illustrious检查
+                elif any(x in comment for x in [
+                    'illustrious', 'illust', 'illus', 'illustrated'
+                ]):
+                    model_scores['SDXL-Illustrious'] = 100
+            
+            # 2. 检查模型名称（第二优先级）
+            if 'ss_sd_model_name' in metadata:
+                model_name = metadata['ss_sd_model_name'].lower()
+                if 'pony' in model_name or 'animepastel' in model_name:
+                    model_scores['SDXL-AnimalPony'] = model_scores.get('SDXL-AnimalPony', 0) + 80
+                elif 'illustrious' in model_name:
+                    model_scores['SDXL-Illustrious'] = model_scores.get('SDXL-Illustrious', 0) + 80
+            
+            # 3. 检查目录路径（第三优先级）
+            # 使用正则表达式查找完整的目录名，而不是简单的字符串匹配
+            path_parts = file_path_lower.split(os.sep)
+            for part in path_parts:
+                if re.match(r'.*pony.*', part) or re.match(r'.*animal.*pastel.*', part):
+                    model_scores['SDXL-AnimalPony'] = model_scores.get('SDXL-AnimalPony', 0) + 60
+                elif re.match(r'.*illustrious.*', part) or re.match(r'.*illust.*', part):
+                    model_scores['SDXL-Illustrious'] = model_scores.get('SDXL-Illustrious', 0) + 60
+            
+            # 4. 最后检查文件名（最低优先级）
+            if not model_scores.get('SDXL-AnimalPony', 0) > 0:  # 只在没有找到Pony的情况下检查其他模式
+                name_lower = file_name.lower()
+                if any(x in name_lower for x in [
+                    'illustrious', 'illust', 'illus-', 'illus_', '_ill', '_ill.',
+                    'ill.safetensors', 'ill_', '-ill', 'il-', '-il', '_il'
+                ]):
+                    model_scores['SDXL-Illustrious'] = model_scores.get('SDXL-Illustrious', 0) + 40
+            
+            # 5. 从 base_model_version 获取基本信息
+            if 'ss_base_model_version' in metadata:
+                version = metadata['ss_base_model_version']
+                if version:
+                    if 'sdxl_base_v1-0' in version.lower():
+                        # 使用已经收集的信息来决定具体的模型类型
+                        highest_score = max(model_scores.values()) if model_scores else 0
+                        if highest_score > 0:
+                            base_model = max(model_scores.items(), key=lambda x: x[1])[0]
+                        else:
+                            base_model = 'SDXL-Base'
+                    model_info.append(version)
+            
+            # 6. 如果没有找到任何匹配，但有分数记录，选择分数最高的
+            if not base_model and model_scores:
+                base_model = max(model_scores.items(), key=lambda x: x[1])[0]
+            
+            # 如果仍然没有找到，使用默认值
+            if not base_model:
+                base_model = 'Unknown'
+            
+            # 打印调试信息
+            if model_scores:
+                logger.info(f"Model scores for {file_name}: {model_scores}")
+
             return {
                 'ss_base_model_version': metadata.get('ss_base_model_version', 'Unknown'),
                 'ss_network_module': metadata.get('ss_network_module', ''),
                 'ss_network_dim': metadata.get('ss_network_dim', ''),
-                'ss_network_alpha': metadata.get('ss_network_alpha', '')
+                'ss_network_alpha': metadata.get('ss_network_alpha', ''),
+                'ss_training_comment': metadata.get('ss_training_comment', ''),
+                'base_model': base_model,
+                'model_info': model_info,
+                'model_scores': model_scores  # 可选：添加分数信息用于调试
             }
+
     except Exception as e:
         logger.error(f"Error reading safetensors metadata: {e}")
         return {}
@@ -285,7 +452,7 @@ def upload_preview():
         file = request.files['file']
         lora_name = request.form.get('lora_name')
         # 如果最后是.则去掉
-        if lora_name.endswith('.'):
+        if (lora_name.endswith('.')):
             lora_name = lora_name[:-1]
         sub_path = request.form.get('path', '').strip('/')
 
