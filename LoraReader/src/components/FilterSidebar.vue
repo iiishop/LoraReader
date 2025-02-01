@@ -104,6 +104,18 @@ function clearAllFilters() {
     emitFilterChange();
 }
 
+// 添加折叠状态控制
+const collapsedSections = ref({
+    baseModels: false,
+    versions: true,
+    dims: true,
+    alphas: true
+});
+
+function toggleSection(section) {
+    collapsedSections.value[section] = !collapsedSections.value[section];
+}
+
 </script>
 
 <template>
@@ -111,113 +123,67 @@ function clearAllFilters() {
         <button class="toggle-btn" @click="$emit('expand-change', !isExpanded)">
             {{ isExpanded ? '▶' : '◀' }}
         </button>
-        
+
         <div class="content" v-if="isExpanded">
             <div class="filter-header">
                 <h2>筛选</h2>
-                <button 
+                <button
                     v-if="filterCounts.versions + filterCounts.dims + filterCounts.alphas + filterCounts.baseModels > 0"
-                    class="clear-all-btn"
-                    @click="clearAllFilters"
-                >
+                    class="clear-all-btn" @click="clearAllFilters">
                     清除全部
                 </button>
             </div>
-            
-            <!-- SD 版本筛选 -->
-            <div class="filter-section" v-if="metadata.versions.length">
-                <div class="section-header">
-                    <h3>SD 版本</h3>
-                    <span class="count-badge" v-if="filterCounts.versions">
-                        {{ filterCounts.versions }}/{{ metadata.versions.length }}
-                    </span>
+
+            <!-- 基础模型筛选（默认展开） -->
+            <div class="filter-section">
+                <div class="section-header clickable" @click="toggleSection('baseModels')">
+                    <div class="header-left">
+                        <h3>基础模型</h3>
+                        <span class="count-badge" v-if="filterCounts.baseModels">
+                            {{ filterCounts.baseModels }}/{{ metadata.baseModels.length }}
+                        </span>
+                    </div>
+                    <span class="collapse-icon">{{ collapsedSections.baseModels ? '▼' : '▲' }}</span>
                 </div>
-                <div class="filter-group">
-                    <label v-for="version in metadata.versions" :key="version">
-                        <input 
-                            type="checkbox"
-                            v-model="selectedFilters.versions"
-                            :value="version"
-                        >
-                        <span class="checkbox-label">{{ version }}</span>
-                    </label>
-                </div>
-            </div>
-            
-            <!-- 维度筛选 -->
-            <div class="filter-section" v-if="metadata.dims.length">
-                <div class="section-header">
-                    <h3>维度</h3>
-                    <span class="count-badge" v-if="filterCounts.dims">
-                        {{ filterCounts.dims }}/{{ metadata.dims.length }}
-                    </span>
-                </div>
-                <div class="filter-group chips">
-                    <label 
-                        v-for="dim in metadata.dims" 
-                        :key="dim"
-                        class="chip"
-                        :class="{ active: selectedFilters.dims.has(dim) }"
-                    >
-                        <input 
-                            type="checkbox"
-                            v-model="selectedFilters.dims"
-                            :value="dim"
-                        >
-                        <span>{{ dim }}</span>
-                    </label>
-                </div>
-            </div>
-            
-            <!-- Alpha 值筛选 -->
-            <div class="filter-section" v-if="metadata.alphas.length">
-                <div class="section-header">
-                    <h3>Alpha 值</h3>
-                    <span class="count-badge" v-if="filterCounts.alphas">
-                        {{ filterCounts.alphas }}/{{ metadata.alphas.length }}
-                    </span>
-                </div>
-                <div class="filter-group chips">
-                    <label 
-                        v-for="alpha in metadata.alphas" 
-                        :key="alpha"
-                        class="chip"
-                        :class="{ active: selectedFilters.alphas.has(alpha) }"
-                    >
-                        <input 
-                            type="checkbox"
-                            v-model="selectedFilters.alphas"
-                            :value="alpha"
-                        >
-                        <span>{{ alpha }}</span>
-                    </label>
+                <div class="filter-content" v-show="!collapsedSections.baseModels">
+                    <div class="filter-grid">
+                        <label v-for="model in metadata.baseModels" :key="model" class="grid-item">
+                            <input type="checkbox" :value="model" :checked="selectedFilters.baseModels.has(model)"
+                                @change="e => {
+                                    if (e.target.checked) {
+                                        selectedFilters.baseModels.add(model)
+                                    } else {
+                                        selectedFilters.baseModels.delete(model)
+                                    }
+                                }">
+                            <span class="checkbox-label">{{ model }}</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
-            <!-- 添加基础模型筛选部分 -->
-            <div class="filter-section" v-if="metadata.baseModels.length">
-                <div class="section-header">
-                    <h3>基础模型</h3>
-                    <span class="count-badge" v-if="filterCounts.baseModels">
-                        {{ filterCounts.baseModels }}/{{ metadata.baseModels.length }}
-                    </span>
+            <!-- 其他筛选项（默认折叠） -->
+            <div v-for="(items, type) in {
+                versions: { title: 'SD 版本', data: metadata.versions },
+                dims: { title: '维度', data: metadata.dims },
+                alphas: { title: 'Alpha 值', data: metadata.alphas }
+            }" :key="type" class="filter-section">
+                <div class="section-header clickable" @click="toggleSection(type)">
+                    <div class="header-left">
+                        <h3>{{ items.title }}</h3>
+                        <span class="count-badge" v-if="filterCounts[type]">
+                            {{ filterCounts[type] }}/{{ items.data.length }}
+                        </span>
+                    </div>
+                    <span class="collapse-icon">{{ collapsedSections[type] ? '▼' : '▲' }}</span>
                 </div>
-                <div class="filter-group">
-                    <label v-for="model in metadata.baseModels" :key="model">
-                        <input 
-                            type="checkbox"
-                            :value="model"
-                            :checked="selectedFilters.baseModels.has(model)"
-                            @change="e => {
-                                if (e.target.checked) {
-                                    selectedFilters.baseModels.add(model)
-                                } else {
-                                    selectedFilters.baseModels.delete(model)
-                                }
-                            }"
-                        >
-                        <span class="checkbox-label">{{ model }}</span>
-                    </label>
+                <div class="filter-content" v-show="!collapsedSections[type]">
+                    <div class="filter-grid">
+                        <label v-for="item in items.data" :key="item" class="grid-item">
+                            <input type="checkbox" v-model="selectedFilters[type]" :value="item">
+                            <span class="checkbox-label">{{ item }}</span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -262,7 +228,8 @@ function clearAllFilters() {
 .content {
     flex: 1;
     padding: 1rem;
-    padding-top: 4rem; /* 为顶部搜索框留出空间 */
+    padding-top: 4rem;
+    /* 为顶部搜索框留出空间 */
     overflow-y: auto;
 }
 
@@ -393,9 +360,63 @@ label:hover {
     background-color: #f8f9fa;
 }
 
-.filter-section + .filter-section {
+.filter-section+.filter-section {
     margin-top: 2rem;
     padding-top: 2rem;
     border-top: 1px solid #eee;
+}
+
+.section-header.clickable {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.section-header.clickable:hover {
+    background: #e9ecef;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.collapse-icon {
+    color: #666;
+    transition: transform 0.3s;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+.grid-item {
+    padding: 0.3rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f8f9fa;
+}
+
+.grid-item:hover {
+    background: #e9ecef;
+}
+
+.filter-content {
+    max-height: 300px;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+    margin-bottom: 1rem;
 }
 </style>
