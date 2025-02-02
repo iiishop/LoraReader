@@ -218,6 +218,18 @@ function toggleSort(field) {
         sortOrder.value = 'asc';
     }
 }
+
+// 添加拖拽相关函数
+function handleDragStart(event, lora) {
+    console.log('Drag started:', lora);
+    event.dataTransfer.setData('application/json', JSON.stringify({
+        type: 'lora',
+        data: lora,
+        sourcePath: props.currentPath
+    }));
+    // 设置拖动效果
+    event.dataTransfer.effectAllowed = 'move';
+}
 </script>
 
 <template>
@@ -294,7 +306,9 @@ function toggleSort(field) {
             <div v-for="lora in filteredLoraFiles" 
                  :key="lora.name" 
                  :class="['lora-item', `item-${viewMode}`]"
-                 @click="handleLoraClick(lora)">
+                 @click="handleLoraClick(lora)"
+                 draggable="true"
+                 @dragstart="handleDragStart($event, lora)">
                 <div :class="['preview', `preview-${viewMode}`]">
                     <img v-if="lora.has_preview" 
                          :src="`http://localhost:5000${lora.preview_path}`" 
@@ -806,5 +820,14 @@ function toggleSort(field) {
     .layout-gallery {
         columns: 1 100%;
     }
+}
+
+.lora-item {
+    /* ... existing styles ... */
+    cursor: grab;  /* 添加抓取光标样式 */
+}
+
+.lora-item:active {
+    cursor: grabbing;  /* 拖动时的光标样式 */
 }
 </style>

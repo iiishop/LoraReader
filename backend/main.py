@@ -10,6 +10,7 @@ from safetensors import safe_open
 import uuid
 import time
 import base64
+import shutil
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -294,7 +295,7 @@ def get_lora_metadata(file_path):
                     if 'sdxl_base_v1-0' in version.lower():
                         # 使用已经收集的信息来决定具体的模型类型
                         highest_score = max(model_scores.values()) if model_scores else 0
-                        if highest_score > 0:
+                        if (highest_score > 0):
                             base_model = max(model_scores.items(), key=lambda x: x[1])[0]
                         else:
                             base_model = 'SDXL-Base'
@@ -902,6 +903,91 @@ def delete_combination(combo_id):
         return jsonify({'status': 'success'})
     except Exception as e:
         logger.error(f"Error deleting combination: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/move-lora', methods=['POST'])
+def move_lora():
+    try:
+        data = request.json
+        config = load_config()
+        base_path = config.get('lora_path', '')
+        
+        # 更好的路径处理
+        source_path = os.path.normpath(os.path.join(base_path, data['sourcePath'].strip('/')))
+        target_path = os.path.normpath(os.path.join(base_path, data['targetPath'].strip('/')))
+        lora_base_name = data['loraName']
+        
+        logger.info(f"Moving files for {lora_base_name} from {source_path} to {target_path}")
+        
+        # 输入验证
+        if not all([base_path, source_path, target_path, lora_base_name]):
+            logger.error("Missing required parameters")
+            return jsonify({'error': 'Missing required parameters'}), 400
+        
+        # 验证路径
+        for path in [source_path, target_path]:
+            real_path = os.path.realpath(path)
+            if not real_path.startswith(os.path.realpath(base_path)):
+                logger.error(f"Invalid path: {path}")
+                return jsonify({'error': 'Invalid path'}), 403
+        
+        if not os.path.exists(source_path):
+            logger.error(f"Source path not found: {source_path}")
+            return jsonify({'error': 'Source path not found'}), 404
+            
+        if not os.path.exists(target_path):
+            logger.error(f"Target path not found: {target_path}")
+            return jsonify({'error': 'Target path not found'}), 404
+            
+        # 查找所有相关文件
+        files_to_move = []
+        source_files = os.listdir(source_path)
+        
+        for file in source_files:
+            if file.startswith(lora_base_name) and any(file.endswith(ext) 
+                for ext in ['.safetensors', '.png', '.json']):
+                files_to_move.append(file)
+        
+        if not files_to_move:
+            logger.error(f"No files found to move for {lora_base_name}")
+            return jsonify({'error': 'No files found to move'}), 404
+        
+        # 检查目标文件是否已存在
+        for file in files_to_move:
+            target_file = os.path.join(target_path, file)
+            if os.path.exists(target_file):
+                logger.error(f"Target file already exists: {target_file}")
+                return jsonify({'error': f'File already exists in target: {file}'}), 409
+        
+        # 执行移动
+        moved_files = []
+        for file in files_to_move:
+            try:
+                source_file = os.path.join(source_path, file)
+                target_file = os.path.join(target_path, file)
+                shutil.move(source_file, target_file)
+                moved_files.append(file)
+                logger.info(f"Successfully moved {file}")
+            except Exception as e:
+                logger.error(f"Error moving {file}: {str(e)}")
+                # 如果有错误，尝试回滚已移动的文件
+                for moved_file in moved_files:
+                    try:
+                        shutil.move(
+                            os.path.join(target_path, moved_file),
+                            os.path.join(source_path, moved_file)
+                        )
+                    except Exception as rollback_error:
+                        logger.error(f"Error during rollback: {str(rollback_error)}")
+                return jsonify({'error': f'Error moving file {file}: {str(e)}'}), 500
+            
+        return jsonify({
+            'status': 'success',
+            'moved_files': moved_files
+        })
+        
+    except Exception as e:
+        logger.error(f"Error moving lora files: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

@@ -60,6 +60,56 @@ onMounted(() => {
         loadFolders();
     }
 });
+
+// 添加拖拽处理函数
+async function handleDrop(event, targetFolder) {
+    event.preventDefault();
+    try {
+        const data = JSON.parse(event.dataTransfer.getData('application/json'));
+        if (data.type !== 'lora') return;
+
+        const sourcePath = data.sourcePath || '';
+        const targetPath = targetFolder === '..' ? 
+            currentPath.value.split('/').slice(0, -1).join('/') : 
+            currentPath.value === '/' ? targetFolder : `${currentPath.value}/${targetFolder}`;
+
+        console.log('Moving LoRA:', {
+            sourcePath,
+            targetPath,
+            loraName: data.data.base_name
+        });
+
+        const response = await fetch('http://localhost:5000/move-lora', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sourcePath,
+                targetPath,
+                loraName: data.data.base_name
+            })
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || '移动失败');
+        }
+
+        // 发出事件通知父组件刷新当前路径的内容
+        emit('path-change', currentPath.value);
+        
+        // 如果成功，显示成功消息
+        alert('文件移动成功！');
+    } catch (error) {
+        console.error('移动文件失败:', error);
+        alert(error.message || '移动文件失败');
+    }
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+}
 </script>
 
 <template>
@@ -75,14 +125,18 @@ onMounted(() => {
             <div v-else class="folders">
                 <div v-if="canGoBack" 
                      class="folder-item back-item"
-                     @click="goBack">
+                     @click="goBack"
+                     @dragover="handleDragOver"
+                     @drop="handleDrop($event, '..')">
                     <span class="folder-icon">↩</span>
                     返回上一级
                 </div>
                 <div v-for="folder in folders" 
                      :key="folder" 
                      class="folder-item"
-                     @click="enterFolder(folder)">
+                     @click="enterFolder(folder)"
+                     @dragover="handleDragOver"
+                     @drop="handleDrop($event, folder)">
                     <span class="folder-icon">📁</span>
                     {{ folder }}
                 </div>
@@ -160,6 +214,11 @@ onMounted(() => {
 
 .folder-item:hover {
     background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.folder-item.drag-over {
+    background: #e3f2fd;
     transform: translateX(5px);
 }
 
