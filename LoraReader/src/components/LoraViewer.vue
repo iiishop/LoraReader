@@ -24,6 +24,10 @@ const props = defineProps({
             dims: [],
             alphas: []
         })
+    },
+    showAllMode: { // 添加新的属性
+        type: Boolean,
+        default: false
     }
 });
 
@@ -169,8 +173,12 @@ async function loadLoraFiles(path) {
     loading.value = true;
     error.value = '';  // 清除之前的错误
     try {
-        const cleanPath = path.replace(/\/+/g, '/');  // 规范化路径
-        const response = await fetch(`http://localhost:5000/lora-files?path=${encodeURIComponent(cleanPath)}`);
+        // 根据模式选择不同的 API 端点
+        const endpoint = props.showAllMode ? 
+            'http://localhost:5000/scan-all-loras' : 
+            `http://localhost:5000/lora-files?path=${encodeURIComponent(path.replace(/\/+/g, '/'))}`;
+
+        const response = await fetch(endpoint);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -201,6 +209,11 @@ async function loadLoraFiles(path) {
     }
 }
 
+// 监听 showAllMode 的变化
+watch(() => props.showAllMode, () => {
+    loadLoraFiles(props.currentPath);
+});
+
 const refreshLoraFiles = () => {
     loadLoraFiles(props.currentPath);
 };
@@ -220,35 +233,15 @@ function toggleSort(field) {
 }
 
 // 添加拖拽相关函数
-const draggingLora = ref(null);
-
-function handleDragStart(event, lora) {
-    draggingLora.value = lora;
-    event.dataTransfer.setData('application/json', JSON.stringify({
-        type: 'lora',
-        data: lora,
-        sourcePath: props.currentPath
-    }));
-    event.currentTarget.classList.add('dragging');
-    
-    // 创建并设置拖动时的预览图
-    const dragImage = new Image();
-    if (lora.has_preview) {
-        dragImage.src = `http://localhost:5000${lora.preview_path}`;
-    }
-    dragImage.onload = () => {
-        event.dataTransfer.setDragImage(dragImage, 50, 50);
-    };
-}
-
-function handleDragEnd(event) {
-    draggingLora.value = null;
-    event.currentTarget.classList.remove('dragging');
-}
-
 const draggingItem = ref(null);
 const ghostImage = ref(null);
 
+// 移除旧的重复函数
+// const draggingLora = ref(null);
+// function handleDragStart(event, lora) { ... }
+// function handleDragEnd(event) { ... }
+
+// 合并并优化拖拽处理函数
 function handleDragStart(event, lora) {
     draggingItem.value = lora;
     event.dataTransfer.setData('application/json', JSON.stringify({
@@ -294,7 +287,8 @@ function handleDragEnd(event) {
     <div class="lora-viewer" :class="{ 
         'list-collapsed': !isExpanded,
         'filter-collapsed': !isFilterExpanded,
-        [`view-${viewMode}`]: true
+        [`view-${viewMode}`]: true,
+        'all-mode': showAllMode
     }">
         <div class="header-controls">
             <div class="search-section">
@@ -363,7 +357,10 @@ function handleDragEnd(event) {
         >
             <div v-for="lora in filteredLoraFiles" 
                  :key="lora.name" 
-                 :class="['lora-item', `item-${viewMode}`, { 'dragging': lora === draggingLora }]"
+                 :class="['lora-item', `item-${viewMode}`, { 
+                     'dragging': lora === draggingItem,
+                     'can-drag': !draggingItem
+                 }]"
                  @click="handleLoraClick(lora)"
                  draggable="true"
                  @dragstart="handleDragStart($event, lora)"
@@ -951,6 +948,14 @@ function handleDragEnd(event) {
 /* Grid Mode 特定样式 */
 .item-grid.dragging {
     transform: scale(0.95);
+}
+
+/* 为全局模式添加一些视觉区分 */
+.all-mode .layout-grid,
+.all-mode .layout-gallery {
+    background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+    border-radius: 12px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 </style>

@@ -6,8 +6,9 @@ const error = ref('');
 const isExpanded = ref(true);
 const currentPath = ref('/');
 const canGoBack = ref(false);
-const emit = defineEmits(['path-change', 'expand-change']);
+const emit = defineEmits(['path-change', 'expand-change', 'view-mode-change']); // 添加新的事件
 const dragOverFolder = ref(null);
+const showAllLoras = ref(false);
 
 // 添加props
 const props = defineProps({
@@ -20,6 +21,11 @@ const props = defineProps({
 function toggleSidebar() {
     isExpanded.value = !isExpanded.value;
     emit('expand-change', isExpanded.value);
+}
+
+function toggleViewMode() {
+    showAllLoras.value = !showAllLoras.value;
+    emit('view-mode-change', showAllLoras.value);
 }
 
 async function loadFolders(path = '') {
@@ -149,46 +155,60 @@ function handleDragLeave(e) {
             {{ isExpanded ? '◀' : '▶' }}
         </button>
         <div class="content" v-show="isExpanded">
-            <h2>文件夹列表</h2>
-            <div v-if="error" class="error">
-                {{ error }}
+            <!-- 添加新的按钮 -->
+            <div class="view-mode-toggle">
+                <button 
+                    class="view-all-btn" 
+                    :class="{ active: showAllLoras }"
+                    @click="toggleViewMode"
+                >
+                    {{ showAllLoras ? '返回文件夹视图' : '查看所有 Lora' }}
+                </button>
             </div>
-            <div v-else class="folders">
-                <div v-if="canGoBack" 
-                     class="folder-item back-item"
-                     :class="{ 'drag-over': dragOverFolder === '..' }"
-                     @click="goBack"
-                     @dragover.prevent="handleDragOver"
-                     @dragenter="handleDragEnter('..')"
-                     @dragleave="handleDragLeave"
-                     @drop="handleDrop($event, '..')">
-                    <span class="folder-icon">↩</span>
-                    返回上一级
-                    <div class="drop-indicator" v-if="dragOverFolder === '..'">
-                        <span class="arrow">⬆</span>
-                        <span class="text">移动到上一级</span>
+            
+            <!-- 现有的文件夹列表，在全局视图下隐藏 -->
+            <template v-if="!showAllLoras">
+                <h2>文件夹列表</h2>
+                <div v-if="error" class="error">
+                    {{ error }}
+                </div>
+                <div v-else class="folders">
+                    <div v-if="canGoBack" 
+                         class="folder-item back-item"
+                         :class="{ 'drag-over': dragOverFolder === '..' }"
+                         @click="goBack"
+                         @dragover.prevent="handleDragOver"
+                         @dragenter="handleDragEnter('..')"
+                         @dragleave="handleDragLeave"
+                         @drop="handleDrop($event, '..')">
+                        <span class="folder-icon">↩</span>
+                        返回上一级
+                        <div class="drop-indicator" v-if="dragOverFolder === '..'">
+                            <span class="arrow">⬆</span>
+                            <span class="text">移动到上一级</span>
+                        </div>
+                    </div>
+                    <div v-for="folder in folders" 
+                         :key="folder" 
+                         class="folder-item"
+                         :class="{ 'drag-over': dragOverFolder === folder }"
+                         @click="enterFolder(folder)"
+                         @dragover.prevent="handleDragOver"
+                         @dragenter="handleDragEnter(folder)"
+                         @dragleave="handleDragLeave"
+                         @drop="handleDrop($event, folder)">
+                        <span class="folder-icon">📁</span>
+                        {{ folder }}
+                        <div class="drop-indicator" v-if="dragOverFolder === folder">
+                            <span class="arrow">➜</span>
+                            <span class="text">移动到此文件夹</span>
+                        </div>
                     </div>
                 </div>
-                <div v-for="folder in folders" 
-                     :key="folder" 
-                     class="folder-item"
-                     :class="{ 'drag-over': dragOverFolder === folder }"
-                     @click="enterFolder(folder)"
-                     @dragover.prevent="handleDragOver"
-                     @dragenter="handleDragEnter(folder)"
-                     @dragleave="handleDragLeave"
-                     @drop="handleDrop($event, folder)">
-                    <span class="folder-icon">📁</span>
-                    {{ folder }}
-                    <div class="drop-indicator" v-if="dragOverFolder === folder">
-                        <span class="arrow">➜</span>
-                        <span class="text">移动到此文件夹</span>
-                    </div>
+                <div class="current-path">
+                    当前路径: {{ currentPath }}
                 </div>
-            </div>
-            <div class="current-path">
-                当前路径: {{ currentPath }}
-            </div>
+            </template>
         </div>
     </div>
 </template>
@@ -352,5 +372,36 @@ h2 {
     font-size: 0.9rem;
     color: #666;
     word-break: break-all;
+}
+
+.view-mode-toggle {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: #f0f4f8;
+    border-radius: 8px;
+}
+
+.view-all-btn {
+    width: 100%;
+    padding: 0.8rem;
+    border: none;
+    border-radius: 6px;
+    background: white;
+    color: #1976d2;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.view-all-btn:hover {
+    background: #e3f2fd;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.view-all-btn.active {
+    background: #1976d2;
+    color: white;
 }
 </style>

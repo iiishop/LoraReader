@@ -12,6 +12,7 @@ import ImageDetail from './components/ImageDetail.vue';
 import LoraSearchResult from './components/detailComp/LoraSearchResult.vue';
 import { globalState } from './utils/globalVar';
 
+const showAllMode = ref(false);
 const showSelector = ref(false);
 const selectorVisible = ref(false);
 const currentPath = ref('/');
@@ -108,6 +109,7 @@ onMounted(checkConfig);
         :initial-path="currentPath"  
         @path-change="handleFolderChange" 
         @expand-change="handleExpandChange" 
+        @view-mode-change="showAllMode = $event"
       />
       <div class="main-content" :class="{
         'collapsed': showSelector,
@@ -120,6 +122,7 @@ onMounted(checkConfig);
           :is-expanded="isListExpanded"
           :is-filter-expanded="isFilterExpanded"
           :active-filters="activeFilters"
+          :show-all-mode="showAllMode"
           @filter-expand-change="handleFilterExpandChange"
           @lora-files-change="handleLoraFilesChange"
         />
