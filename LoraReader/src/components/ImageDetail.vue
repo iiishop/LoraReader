@@ -21,6 +21,8 @@ const negativePrompt = ref('');
 const errorMessage = ref('');
 const showPositiveCopySuccess = ref(false);
 const showNegativeCopySuccess = ref(false);
+const showWebUICopySuccess = ref(false);
+const showComfyUICopySuccess = ref(false);
 
 const generationParams = ref({
     steps: null,
@@ -85,16 +87,36 @@ function findCompleteJsonObjects(text) {
         }
         
         if (bracketCount === 0) {
-            // 提取完整的 JSON 对象
-            const jsonContent = text.slice(contentStart, j);
+            // 提取完整的 JSON 对象并预处理
+            let jsonContent = text.slice(contentStart, j);
+            
             try {
+                // 处理非标准 JSON 值
+                jsonContent = jsonContent
+                    .replace(/:\s*NaN\b/g, ': null')  // 替换 NaN
+                    .replace(/:\s*Infinity\b/g, ': null')  // 替换 Infinity
+                    .replace(/:\s*-Infinity\b/g, ': null')  // 替换 -Infinity
+                    .replace(/:\s*undefined\b/g, ': null');  // 替换 undefined
+                
                 const parsed = JSON.parse(jsonContent);
+                
+                // 记录日志以便调试
+                console.log(`Successfully parsed node ${nodeId}:`, {
+                    originalLength: j - contentStart,
+                    processedLength: jsonContent.length,
+                    firstChars: jsonContent.substring(0, 50)
+                });
+                
                 results.push({
                     nodeId,
                     content: parsed
                 });
             } catch (e) {
-                console.error(`Error parsing node ${nodeId}:`, e);
+                console.error(`Error parsing node ${nodeId}:`, {
+                    error: e.message,
+                    content: jsonContent.substring(0, 100) + '...',
+                    position: i
+                });
             }
         }
         
@@ -448,6 +470,112 @@ function handleOverlayClick(e) {
         emit('close-image-detail');
     }
 }
+
+function formatWebUILoras(loras) {
+    return loras
+        .map(lora => `<${lora.name}:${lora.weight || 1}>`)
+        .join(', ');
+}
+
+async function selectLora(loraName) {
+    const results = findLorasByName(loraName);
+    if (results.length === 0) {
+        alert('未找到相关 LoRA');
+        return null;
+    } else if (results.length === 1) {
+        return results[0];
+    } else {
+        // 创建一个 Promise 来等待用户选择
+        return new Promise((resolve) => {
+            // 保存回调函数到 globalState，用于后续处理
+            globalState.searchCallback = (selectedLora) => {
+                globalState.closeSearchResults();
+                resolve(selectedLora);
+            };
+            // 打开搜索结果面板
+            globalState.openSearchResults(results, loraName);
+        });
+    }
+}
+
+async function formatComfyUILoras(loras) {
+    try {
+        // 构建基础结构
+        const stackerConfig = {
+            inputs: {
+                input_mode: "simple",
+                lora_count: loras.length
+            },
+            class_type: "LoRA Stacker"
+        };
+
+        // 为每个 LoRA 添加配置
+        for (let i = 0; i < 49; i++) {
+            const num = i + 1;
+            if (i < loras.length) {
+                const lora = loras[i];
+                let loraPath;
+                
+                if (lora.source === 'comfyui' && lora.originalPath) {
+                    // 如果是 ComfyUI 源且有原始路径，直接使用
+                    loraPath = lora.originalPath + '.safetensors';
+                } else {
+                    // 否则需要用户选择正确的 LoRA
+                    const selectedLora = await selectLora(lora.name);
+                    if (selectedLora) {
+                        // 构建相对路径
+                        loraPath = selectedLora.relative_path ? 
+                            `${selectedLora.relative_path}\\${selectedLora.name}` : 
+                            selectedLora.name;
+                    } else {
+                        loraPath = `${lora.name}.safetensors`;
+                    }
+                }
+
+                stackerConfig.inputs[`lora_name_${num}`] = loraPath;
+                stackerConfig.inputs[`lora_wt_${num}`] = lora.weight || 1.0;
+                stackerConfig.inputs[`model_str_${num}`] = 1.0;
+                stackerConfig.inputs[`clip_str_${num}`] = 1.0;
+            } else {
+                // 填充剩余槽位
+                stackerConfig.inputs[`lora_name_${num}`] = "None";
+                stackerConfig.inputs[`lora_wt_${num}`] = 1.0;
+                stackerConfig.inputs[`model_str_${num}`] = 1.0;
+                stackerConfig.inputs[`clip_str_${num}`] = 1.0;
+            }
+        }
+
+        // 返回完整的配置字符串
+        return `"589": ${JSON.stringify(stackerConfig, null, 2)}`;
+    } catch (error) {
+        console.error('Error formatting ComfyUI LoRAs:', error);
+        throw error;
+    }
+}
+
+// 修改复制函数以支持异步操作
+async function copyAllLoras(format) {
+    if (!generationParams.value.loras?.length) return;
+    
+    try {
+        const text = format === 'webui' 
+            ? formatWebUILoras(generationParams.value.loras)
+            : await formatComfyUILoras(generationParams.value.loras);
+            
+        await navigator.clipboard.writeText(text);
+        
+        if (format === 'webui') {
+            showWebUICopySuccess.value = true;
+            setTimeout(() => showWebUICopySuccess.value = false, 2000);
+        } else {
+            showComfyUICopySuccess.value = true;
+            setTimeout(() => showComfyUICopySuccess.value = false, 2000);
+        }
+    } catch (err) {
+        console.error('复制失败:', err);
+        alert('复制失败，请手动复制');
+    }
+}
 </script>
 
 <template>
@@ -517,7 +645,25 @@ function handleOverlayClick(e) {
 
                         <!-- 统一的 LoRA 展示部分 -->
                         <div v-if="generationParams.loras?.length" class="lora-section">
-                            <h3>使用的 LoRA</h3>
+                            <div class="lora-header">
+                                <h3>使用的 LoRA</h3>
+                                <div class="copy-buttons">
+                                    <button 
+                                        class="copy-format-btn"
+                                        :class="{ success: showWebUICopySuccess }"
+                                        @click="copyAllLoras('webui')"
+                                    >
+                                        {{ showWebUICopySuccess ? '已复制!' : '复制为WebUI格式' }}
+                                    </button>
+                                    <button 
+                                        class="copy-format-btn"
+                                        :class="{ success: showComfyUICopySuccess }"
+                                        @click="copyAllLoras('comfyui')"
+                                    >
+                                        {{ showComfyUICopySuccess ? '已复制!' : '复制为ComfyUI格式' }}
+                                    </button>
+                                </div>
+                            </div>
                             <div class="lora-list">
                                 <div v-for="lora in generationParams.loras" 
                                      :key="lora.name"
@@ -721,6 +867,40 @@ copy-btn:hover.success {
     border-radius: 8px;
 }
 
+.lora-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.copy-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.copy-format-btn {
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+    background: white;
+    color: #666;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.copy-format-btn:hover {
+    background: #f5f5f5;
+    border-color: #ccc;
+}
+
+.copy-format-btn.success {
+    background: #4caf50;
+    color: white;
+    border-color: #4caf50;
+}
+
 .lora-list {
     display: flex;
     flex-wrap: wrap;
@@ -784,3 +964,4 @@ h3 {
     margin-bottom: 0.75rem;
 }
 </style>
+``` 

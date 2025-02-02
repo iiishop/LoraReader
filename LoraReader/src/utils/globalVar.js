@@ -183,31 +183,23 @@ export const globalState = {
     searchResults: ref([]),
     showSearchResults: ref(false),
     searchTerm: ref(''),
+    searchCallback: null, // 添加回调函数存储
     
     // 添加新方法
-    openSearchResults(results, term) {
-        // 先规范化搜索词
-        const normalizedTerm = normalizeSearchTerm(term);
-        this.searchTerm.value = normalizedTerm;
-        
-        // 确保每个结果都包含搜索相关的点击数
-        const resultsWithClicks = results.map(lora => ({
-            ...lora,
-            searchTerm: normalizedTerm,
-            // 注意：这里的 search_clicks 和 global_clicks 已经在 findLorasByName 中设置
-        }));
-        
-        // 按搜索点击量排序
-        resultsWithClicks.sort((a, b) => (b.search_clicks || 0) - (a.search_clicks || 0));
-        
-        this.searchResults.value = resultsWithClicks;
+    openSearchResults(results, searchTerm, callback) {
+        this.searchResults.value = results;
+        this.searchTerm.value = searchTerm;
         this.showSearchResults.value = true;
+        if (callback) {
+            this.searchCallback = callback;
+        }
     },
     
     closeSearchResults() {
         this.showSearchResults.value = false;
         this.searchResults.value = [];
         this.searchTerm.value = '';
+        this.searchCallback = null;
     }
 };
 

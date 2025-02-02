@@ -55,8 +55,9 @@ function loadMore() {
 }
 
 function handleLoraSelect(lora) {
-    globalState.openLoraDetail(lora);
-    emit('close');
+    if (globalState.searchCallback) {
+        globalState.searchCallback(lora);
+    }
 }
 
 function handleOverlayClick(e) {
