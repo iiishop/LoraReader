@@ -24,12 +24,12 @@
 .detail-card {
     background: linear-gradient(to bottom, #ffffff, #f8f9fa);
     border-radius: 16px;
-    width: 90%;
+    width: 95%;
     max-width: 1000px;
     max-height: 80vh;
     overflow-y: auto;
     position: relative;
-    padding: 2rem;
+    padding: 1rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(10px);
@@ -50,7 +50,8 @@
 
 .content-wrapper {
     display: flex;
-    gap: 2rem;
+    gap: 1rem;
+    width: 100%;
     align-items: start;
 }
 
