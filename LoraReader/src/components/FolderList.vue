@@ -7,6 +7,7 @@ const isExpanded = ref(true);
 const currentPath = ref('/');
 const canGoBack = ref(false);
 const emit = defineEmits(['path-change', 'expand-change']);
+const dragOverFolder = ref(null);
 
 // 添加props
 const props = defineProps({
@@ -64,6 +65,8 @@ onMounted(() => {
 // 添加拖拽处理函数
 async function handleDrop(event, targetFolder) {
     event.preventDefault();
+    dragOverFolder.value = null; // 清除拖拽状态
+    
     try {
         const data = JSON.parse(event.dataTransfer.getData('application/json'));
         if (data.type !== 'lora') return;
@@ -100,7 +103,24 @@ async function handleDrop(event, targetFolder) {
         
         // 如果成功，显示成功消息
         alert('文件移动成功！');
+
+        // 成功后添加一个动画效果
+        const targetElement = event.currentTarget;
+        targetElement.classList.add('drop-success');
+        setTimeout(() => {
+            targetElement.classList.remove('drop-success');
+        }, 1000);
+        
+        // 通知父组件刷新
+        emit('path-change', currentPath.value);
     } catch (error) {
+        // 错误时添加动画效果
+        const targetElement = event.currentTarget;
+        targetElement.classList.add('drop-error');
+        setTimeout(() => {
+            targetElement.classList.remove('drop-error');
+        }, 1000);
+        
         console.error('移动文件失败:', error);
         alert(error.message || '移动文件失败');
     }
@@ -109,6 +129,17 @@ async function handleDrop(event, targetFolder) {
 function handleDragOver(event) {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(folder) {
+    dragOverFolder.value = folder;
+}
+
+function handleDragLeave(e) {
+    // 只有当鼠标真正离开元素（而不是进入子元素）时才清除状态
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+        dragOverFolder.value = null;
+    }
 }
 </script>
 
@@ -125,20 +156,34 @@ function handleDragOver(event) {
             <div v-else class="folders">
                 <div v-if="canGoBack" 
                      class="folder-item back-item"
+                     :class="{ 'drag-over': dragOverFolder === '..' }"
                      @click="goBack"
-                     @dragover="handleDragOver"
+                     @dragover.prevent="handleDragOver"
+                     @dragenter="handleDragEnter('..')"
+                     @dragleave="handleDragLeave"
                      @drop="handleDrop($event, '..')">
                     <span class="folder-icon">↩</span>
                     返回上一级
+                    <div class="drop-indicator" v-if="dragOverFolder === '..'">
+                        <span class="arrow">⬆</span>
+                        <span class="text">移动到上一级</span>
+                    </div>
                 </div>
                 <div v-for="folder in folders" 
                      :key="folder" 
                      class="folder-item"
+                     :class="{ 'drag-over': dragOverFolder === folder }"
                      @click="enterFolder(folder)"
-                     @dragover="handleDragOver"
+                     @dragover.prevent="handleDragOver"
+                     @dragenter="handleDragEnter(folder)"
+                     @dragleave="handleDragLeave"
                      @drop="handleDrop($event, folder)">
                     <span class="folder-icon">📁</span>
                     {{ folder }}
+                    <div class="drop-indicator" v-if="dragOverFolder === folder">
+                        <span class="arrow">➜</span>
+                        <span class="text">移动到此文件夹</span>
+                    </div>
                 </div>
             </div>
             <div class="current-path">
@@ -210,6 +255,8 @@ function handleDragOver(event) {
     border-radius: 6px;
     transition: all 0.2s;
     cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
 }
 
 .folder-item:hover {
@@ -218,8 +265,53 @@ function handleDragOver(event) {
 }
 
 .folder-item.drag-over {
+    transform: scale(1.02) translateX(10px);
     background: #e3f2fd;
-    transform: translateX(5px);
+    border: 2px dashed #1976d2;
+    box-shadow: 0 0 10px rgba(25, 118, 210, 0.2);
+}
+
+.drop-indicator {
+    position: absolute;
+    right: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #1976d2;
+    font-size: 0.9rem;
+    animation: fadeInRight 0.3s ease;
+    pointer-events: none; /* 防止指示器干扰拖拽事件 */
+}
+
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.drop-success {
+    animation: successPulse 1s ease;
+}
+
+.drop-error {
+    animation: errorShake 0.5s ease;
+}
+
+@keyframes successPulse {
+    0% { background: #e3f2fd; }
+    50% { background: #a5d6a7; }
+    100% { background: #f8f9fa; }
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
 }
 
 .error {

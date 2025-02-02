@@ -220,16 +220,74 @@ function toggleSort(field) {
 }
 
 // 添加拖拽相关函数
+const draggingLora = ref(null);
+
 function handleDragStart(event, lora) {
-    console.log('Drag started:', lora);
+    draggingLora.value = lora;
     event.dataTransfer.setData('application/json', JSON.stringify({
         type: 'lora',
         data: lora,
         sourcePath: props.currentPath
     }));
-    // 设置拖动效果
-    event.dataTransfer.effectAllowed = 'move';
+    event.currentTarget.classList.add('dragging');
+    
+    // 创建并设置拖动时的预览图
+    const dragImage = new Image();
+    if (lora.has_preview) {
+        dragImage.src = `http://localhost:5000${lora.preview_path}`;
+    }
+    dragImage.onload = () => {
+        event.dataTransfer.setDragImage(dragImage, 50, 50);
+    };
 }
+
+function handleDragEnd(event) {
+    draggingLora.value = null;
+    event.currentTarget.classList.remove('dragging');
+}
+
+const draggingItem = ref(null);
+const ghostImage = ref(null);
+
+function handleDragStart(event, lora) {
+    draggingItem.value = lora;
+    event.dataTransfer.setData('application/json', JSON.stringify({
+        type: 'lora',
+        data: lora,
+        sourcePath: props.currentPath
+    }));
+
+    // 创建拖动时的预览图
+    if (lora.has_preview) {
+        const img = new Image();
+        img.src = `http://localhost:5000${lora.preview_path}`;
+        img.onload = () => {
+            // 创建一个离屏的canvas来绘制带效果的预览图
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            
+            // 添加半透明效果
+            ctx.globalAlpha = 0.7;
+            ctx.drawImage(img, 0, 0);
+            
+            // 设置拖动预览图
+            event.dataTransfer.setDragImage(canvas, img.width / 2, img.height / 2);
+        };
+        ghostImage.value = img;
+    }
+
+    // 添加拖动样式
+    event.target.classList.add('dragging');
+}
+
+function handleDragEnd(event) {
+    draggingItem.value = null;
+    ghostImage.value = null;
+    event.target.classList.remove('dragging');
+}
+
 </script>
 
 <template>
@@ -305,10 +363,11 @@ function handleDragStart(event, lora) {
         >
             <div v-for="lora in filteredLoraFiles" 
                  :key="lora.name" 
-                 :class="['lora-item', `item-${viewMode}`]"
+                 :class="['lora-item', `item-${viewMode}`, { 'dragging': lora === draggingLora }]"
                  @click="handleLoraClick(lora)"
                  draggable="true"
-                 @dragstart="handleDragStart($event, lora)">
+                 @dragstart="handleDragStart($event, lora)"
+                 @dragend="handleDragEnd">
                 <div :class="['preview', `preview-${viewMode}`]">
                     <img v-if="lora.has_preview" 
                          :src="`http://localhost:5000${lora.preview_path}`" 
@@ -825,9 +884,73 @@ function handleDragStart(event, lora) {
 .lora-item {
     /* ... existing styles ... */
     cursor: grab;  /* 添加抓取光标样式 */
+    transform-origin: center;
+    transition: all 0.3s ease;
 }
 
 .lora-item:active {
     cursor: grabbing;  /* 拖动时的光标样式 */
 }
+
+.lora-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    cursor: grabbing;
+}
+
+.lora-item:not(.dragging):hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+@keyframes grabAttention {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.lora-item.can-drag:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.lora-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    outline: 2px dashed #1976d2;
+    outline-offset: -2px;
+    box-shadow: 0 0 15px rgba(25, 118, 210, 0.3);
+    cursor: grabbing;
+    animation: pulseOutline 1.5s ease infinite;
+}
+
+@keyframes pulseOutline {
+    0% {
+        outline-color: rgba(25, 118, 210, 0.8);
+        outline-offset: -2px;
+    }
+    50% {
+        outline-color: rgba(25, 118, 210, 0.4);
+        outline-offset: 0px;
+    }
+    100% {
+        outline-color: rgba(25, 118, 210, 0.8);
+        outline-offset: -2px;
+    }
+}
+
+.lora-item.dragging img {
+    filter: brightness(0.8);
+}
+
+/* Gallery Mode 特定样式 */
+.item-gallery.dragging {
+    transform: scale(0.98);
+}
+
+/* Grid Mode 特定样式 */
+.item-grid.dragging {
+    transform: scale(0.95);
+}
+
 </style>
