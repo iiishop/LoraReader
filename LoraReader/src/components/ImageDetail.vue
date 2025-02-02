@@ -104,9 +104,31 @@ function findCompleteJsonObjects(text) {
     return results;
 }
 
+function extractLoraWeightsFromPrompt(prompt) {
+    const weights = {};
+    const loraPattern = /<([^:]+):([^>]+)>/g;
+    let match;
+    
+    while ((match = loraPattern.exec(prompt)) !== null) {
+        const [, name, weight] = match;
+        weights[name] = parseFloat(weight) || 1.0;
+    }
+    
+    return weights;
+}
+
 function parseAllLoraInfo(text) {
     console.log('Starting LoRA parsing...');
     const loras = [];
+    const loraWeights = {};
+    
+    // 提取提示词中的 LoRA 权重
+    if (positivePrompt.value) {
+        Object.assign(loraWeights, extractLoraWeightsFromPrompt(positivePrompt.value));
+    }
+    if (negativePrompt.value) {
+        Object.assign(loraWeights, extractLoraWeightsFromPrompt(negativePrompt.value));
+    }
     
     // 1. 尝试解析 ComfyUI 格式
     try {
@@ -177,9 +199,12 @@ function parseAllLoraInfo(text) {
             const [name, hashValue] = hash.split(':');
             if (name) {
                 const cleanName = name.replace(/^(?:lora|lyco)_/, '');
+                // 添加从提示词中提取的权重
+                const weight = loraWeights[cleanName] || 1.0;
                 loras.push({
                     name: cleanName,
                     hash: hashValue,
+                    weight: weight,  // 添加权重
                     source: 'webui'
                 });
             }
@@ -499,7 +524,7 @@ function handleOverlayClick(e) {
                                      class="lora-item"
                                      @click="handleLoraClick(lora)">
                                     <span class="lora-name">{{ lora.name }}</span>
-                                    <span v-if="lora.weight" class="lora-weight">× {{ lora.weight }}</span>
+                                    <span class="lora-weight">× {{ lora.weight }}</span>
                                     <span v-if="lora.hash" class="lora-hash" :title="lora.hash">
                                         #{{ lora.hash.substring(0, 8) }}
                                     </span>
@@ -728,6 +753,10 @@ copy-btn:hover.success {
 
 .lora-weight {
     color: #666;
+    font-family: monospace;
+    padding: 0.1rem 0.3rem;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
 }
 
 .lora-hash {
