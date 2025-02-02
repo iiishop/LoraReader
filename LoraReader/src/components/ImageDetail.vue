@@ -41,6 +41,13 @@ const generationParams = ref({
     version: null
 });
 
+const showFullscreen = ref(false);
+const isZoomed = ref(false);
+const zoomLevel = ref(1);
+const dragStart = ref({ x: 0, y: 0 });
+const imagePosition = ref({ x: 0, y: 0 });
+const isDragging = ref(false);
+
 watch(() => props.imageUrl, async (newUrl) => {
     if (newUrl) {
         await parseImage(newUrl);
@@ -577,6 +584,68 @@ async function copyAllLoras(format) {
         alert('复制失败，请手动复制');
     }
 }
+
+function toggleFullscreen() {
+    showFullscreen.value = !showFullscreen.value;
+    if (!showFullscreen.value) {
+        // 重置缩放状态
+        resetZoom();
+    }
+}
+
+function handleWheel(e) {
+    if (!showFullscreen.value) return;
+    e.preventDefault();
+    
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(0.1, Math.min(5, zoomLevel.value * delta));
+    zoomLevel.value = newZoom;
+}
+
+function startDrag(e) {
+    if (!showFullscreen.value || !isZoomed.value) return;
+    isDragging.value = true;
+    dragStart.value = {
+        x: e.clientX - imagePosition.value.x,
+        y: e.clientY - imagePosition.value.y
+    };
+}
+
+function doDrag(e) {
+    if (!isDragging.value) return;
+    imagePosition.value = {
+        x: e.clientX - dragStart.value.x,
+        y: e.clientY - dragStart.value.y
+    };
+}
+
+function stopDrag() {
+    isDragging.value = false;
+}
+
+function resetZoom() {
+    zoomLevel.value = 1;
+    imagePosition.value = { x: 0, y: 0 };
+    isZoomed.value = false;
+}
+
+function toggleZoom(e) {
+    if (!showFullscreen.value) return;
+    if (!isZoomed.value) {
+        zoomLevel.value = 2;
+        // 根据点击位置设置缩放中心
+        const rect = e.target.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        imagePosition.value = {
+            x: (window.innerWidth / 2 - x * 2),
+            y: (window.innerHeight / 2 - y * 2)
+        };
+    } else {
+        resetZoom();
+    }
+    isZoomed.value = !isZoomed.value;
+}
 </script>
 
 <template>
@@ -584,106 +653,149 @@ async function copyAllLoras(format) {
         <div v-if="show" class="overlay image-overlay" @click="handleOverlayClick">
             <div class="detail-card" @click.stop>
                 <button class="close-btn" @click="handleClose">×</button>
-                <div class="content-wrapper">
-                    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-                    <div v-else>
-                        <div class="prompts-container">
-                            <div v-if="positivePrompt" class="prompt-section">
-                                <h2>Positive Prompt</h2>
-                                <div class="prompt-container">
-                                    <div class="prompt-box">{{ positivePrompt }}</div>
-                                    <button class="copy-btn" 
-                                            :class="{ 'success': showPositiveCopySuccess }" 
-                                            @click.stop="copyPositivePrompt">
-                                        {{ showPositiveCopySuccess ? '已复制!' : '复制' }}
-                                    </button>
-                                </div>
-                            </div>
-                            <div v-if="negativePrompt" class="prompt-section">
-                                <h2>Negative Prompt</h2>
-                                <div class="prompt-container">
-                                    <div class="prompt-box">{{ negativePrompt }}</div>
-                                    <button class="copy-btn" 
-                                            :class="{ 'success': showNegativeCopySuccess }" 
-                                            @click.stop="copyNegativePrompt">
-                                        {{ showNegativeCopySuccess ? '已复制!' : '复制' }}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 生成参数展示 -->
-                        <div v-if="Object.values(generationParams).some(v => v)" class="params-section">
-                            <h2>Generation Parameters</h2>
-                            <div class="params-grid">
-                                <div v-if="generationParams.steps" class="param-item">
-                                    <span class="param-label">Steps</span>
-                                    <span class="param-value">{{ generationParams.steps }}</span>
-                                </div>
-                                <div v-if="generationParams.sampler" class="param-item">
-                                    <span class="param-label">Sampler</span>
-                                    <span class="param-value">{{ generationParams.sampler }}</span>
-                                </div>
-                                <div v-if="generationParams.cfgScale" class="param-item">
-                                    <span class="param-label">CFG Scale</span>
-                                    <span class="param-value">{{ generationParams.cfgScale }}</span>
-                                </div>
-                                <div v-if="generationParams.seed" class="param-item">
-                                    <span class="param-label">Seed</span>
-                                    <span class="param-value">{{ generationParams.seed }}</span>
-                                </div>
-                                <div v-if="generationParams.size" class="param-item">
-                                    <span class="param-label">Size</span>
-                                    <span class="param-value">{{ generationParams.size }}</span>
-                                </div>
-                                <div v-if="generationParams.model" class="param-item">
-                                    <span class="param-label">Model</span>
-                                    <span class="param-value">{{ generationParams.model }}</span>
-                                </div>
-                                <!-- 其他参数... -->
-                            </div>
-                        </div>
-
-                        <!-- 统一的 LoRA 展示部分 -->
-                        <div v-if="generationParams.loras?.length" class="lora-section">
-                            <div class="lora-header">
-                                <h3>使用的 LoRA</h3>
-                                <div class="copy-buttons">
-                                    <button 
-                                        class="copy-format-btn"
-                                        :class="{ success: showWebUICopySuccess }"
-                                        @click="copyAllLoras('webui')"
-                                    >
-                                        {{ showWebUICopySuccess ? '已复制!' : '复制为WebUI格式' }}
-                                    </button>
-                                    <button 
-                                        class="copy-format-btn"
-                                        :class="{ success: showComfyUICopySuccess }"
-                                        @click="copyAllLoras('comfyui')"
-                                    >
-                                        {{ showComfyUICopySuccess ? '已复制!' : '复制为ComfyUI格式' }}
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="lora-list">
-                                <div v-for="lora in generationParams.loras" 
-                                     :key="lora.name"
-                                     class="lora-item"
-                                     @click="handleLoraClick(lora)">
-                                    <span class="lora-name">{{ lora.name }}</span>
-                                    <span class="lora-weight">× {{ lora.weight }}</span>
-                                    <span v-if="lora.hash" class="lora-hash" :title="lora.hash">
-                                        #{{ lora.hash.substring(0, 8) }}
-                                    </span>
-                                    <span class="lora-source" :title="lora.source === 'comfyui' ? 'ComfyUI' : 'WebUI'">
-                                        {{ lora.source === 'comfyui' ? '🔧' : '🌐' }}
-                                    </span>
-                                </div>
+                
+                <div class="content-grid">
+                    <!-- 添加预览图部分 -->
+                    <div class="preview-section">
+                        <div class="preview-container" @click="toggleFullscreen">
+                            <img :src="imageUrl" alt="Preview" class="preview-image">
+                            <div class="preview-overlay">
+                                <span class="zoom-hint">点击查看大图</span>
                             </div>
                         </div>
                     </div>
+
+                    <!-- 信息部分 -->
+                    <div class="info-section">
+                        <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+                        <template v-else>
+                            <div class="prompts-container">
+                                <div v-if="positivePrompt" class="prompt-section">
+                                    <h2>Positive Prompt</h2>
+                                    <div class="prompt-container">
+                                        <div class="prompt-box">{{ positivePrompt }}</div>
+                                        <button class="copy-btn" 
+                                                :class="{ 'success': showPositiveCopySuccess }" 
+                                                @click.stop="copyPositivePrompt">
+                                            {{ showPositiveCopySuccess ? '已复制!' : '复制' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div v-if="negativePrompt" class="prompt-section">
+                                    <h2>Negative Prompt</h2>
+                                    <div class="prompt-container">
+                                        <div class="prompt-box">{{ negativePrompt }}</div>
+                                        <button class="copy-btn" 
+                                                :class="{ 'success': showNegativeCopySuccess }" 
+                                                @click.stop="copyNegativePrompt">
+                                            {{ showNegativeCopySuccess ? '已复制!' : '复制' }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 生成参数展示 -->
+                            <div v-if="Object.values(generationParams).some(v => v)" class="params-section">
+                                <h2>Generation Parameters</h2>
+                                <div class="params-grid">
+                                    <div v-if="generationParams.steps" class="param-item">
+                                        <span class="param-label">Steps</span>
+                                        <span class="param-value">{{ generationParams.steps }}</span>
+                                    </div>
+                                    <div v-if="generationParams.sampler" class="param-item">
+                                        <span class="param-label">Sampler</span>
+                                        <span class="param-value">{{ generationParams.sampler }}</span>
+                                    </div>
+                                    <div v-if="generationParams.cfgScale" class="param-item">
+                                        <span class="param-label">CFG Scale</span>
+                                        <span class="param-value">{{ generationParams.cfgScale }}</span>
+                                    </div>
+                                    <div v-if="generationParams.seed" class="param-item">
+                                        <span class="param-label">Seed</span>
+                                        <span class="param-value">{{ generationParams.seed }}</span>
+                                    </div>
+                                    <div v-if="generationParams.size" class="param-item">
+                                        <span class="param-label">Size</span>
+                                        <span class="param-value">{{ generationParams.size }}</span>
+                                    </div>
+                                    <div v-if="generationParams.model" class="param-item">
+                                        <span class="param-label">Model</span>
+                                        <span class="param-value">{{ generationParams.model }}</span>
+                                    </div>
+                                    <!-- 其他参数... -->
+                                </div>
+                            </div>
+
+                            <!-- 统一的 LoRA 展示部分 -->
+                            <div v-if="generationParams.loras?.length" class="lora-section">
+                                <div class="lora-header">
+                                    <h3>使用的 LoRA</h3>
+                                    <div class="copy-buttons">
+                                        <button 
+                                            class="copy-format-btn"
+                                            :class="{ success: showWebUICopySuccess }"
+                                            @click="copyAllLoras('webui')"
+                                        >
+                                            {{ showWebUICopySuccess ? '已复制!' : '复制为WebUI格式' }}
+                                        </button>
+                                        <button 
+                                            class="copy-format-btn"
+                                            :class="{ success: showComfyUICopySuccess }"
+                                            @click="copyAllLoras('comfyui')"
+                                        >
+                                            {{ showComfyUICopySuccess ? '已复制!' : '复制为ComfyUI格式' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="lora-list">
+                                    <div v-for="lora in generationParams.loras" 
+                                         :key="lora.name"
+                                         class="lora-item"
+                                         @click="handleLoraClick(lora)">
+                                        <span class="lora-name">{{ lora.name }}</span>
+                                        <span class="lora-weight">× {{ lora.weight }}</span>
+                                        <span v-if="lora.hash" class="lora-hash" :title="lora.hash">
+                                            #{{ lora.hash.substring(0, 8) }}
+                                        </span>
+                                        <span class="lora-source" :title="lora.source === 'comfyui' ? 'ComfyUI' : 'WebUI'">
+                                            {{ lora.source === 'comfyui' ? '🔧' : '🌐' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
+
+            <!-- 全屏预览模式 -->
+            <Transition name="zoom">
+                <div v-if="showFullscreen" 
+                     class="fullscreen-preview"
+                     @click="toggleFullscreen"
+                     @wheel.prevent="handleWheel"
+                     @mousedown="startDrag"
+                     @mousemove="doDrag"
+                     @mouseup="stopDrag"
+                     @mouseleave="stopDrag">
+                    <div class="fullscreen-controls">
+                        <button class="control-btn" @click.stop="resetZoom">
+                            <span class="material-icons">refresh</span>
+                        </button>
+                        <button class="control-btn" @click.stop="toggleFullscreen">
+                            <span class="material-icons">close</span>
+                        </button>
+                    </div>
+                    <img :src="imageUrl" 
+                         alt="Fullscreen Preview"
+                         class="fullscreen-image"
+                         :style="{
+                             transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoomLevel})`,
+                             cursor: isZoomed ? 'grab' : 'zoom-in'
+                         }"
+                         @click.stop="toggleZoom">
+                </div>
+            </Transition>
         </div>
     </Transition>
 </template>
@@ -963,5 +1075,133 @@ h3 {
     color: #444;
     font-size: 1.1rem;
     margin-bottom: 0.75rem;
+}
+
+.content-grid {
+    display: flex;
+    gap: 3rem;
+    margin-top: 1rem;
+}
+
+.preview-section {
+    position: sticky;
+    top: 1rem;
+}
+
+.preview-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.preview-container:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.preview-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.preview-container:hover .preview-overlay {
+    opacity: 1;
+}
+
+.zoom-hint {
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 500;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.info-section {
+    padding-right: 1rem;
+}
+
+/* 全屏预览样式 */
+.fullscreen-preview {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.fullscreen-image {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.fullscreen-controls {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 1rem;
+    z-index: 2001;
+}
+
+.control-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+/* 动画 */
+.zoom-enter-active,
+.zoom-leave-active {
+    transition: all 0.3s ease;
+}
+
+.zoom-enter-from,
+.zoom-leave-to {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .preview-section {
+        position: relative;
+    }
 }
 </style>

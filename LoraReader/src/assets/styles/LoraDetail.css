@@ -58,9 +58,7 @@
 
 .preview-section {
     position: sticky;
-    top: 1rem;
-    flex: 1;
-    max-width: 50%;
+    top: 0.5rem;
     display: flex;
     flex-direction: column;
 }
