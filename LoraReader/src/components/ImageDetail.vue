@@ -60,11 +60,206 @@ function cleanText(text) {
         .trim();
 }
 
+// 添加 LoRA 信息解析函数
+function findCompleteJsonObjects(text) {
+    const results = [];
+    let i = 0;
+    
+    while (i < text.length) {
+        // 寻找模式 "数字":{
+        const nodeMatch = text.slice(i).match(/"(\d+)":\s*\{/);
+        if (!nodeMatch) break;
+        
+        const nodeId = nodeMatch[1];
+        const startIndex = i + nodeMatch.index;
+        const contentStart = startIndex + nodeMatch[0].length - 1; // -1 是为了包含 {
+        
+        // 从内容开始处寻找匹配的结束括号
+        let bracketCount = 1;
+        let j = contentStart + 1;
+        
+        while (j < text.length && bracketCount > 0) {
+            if (text[j] === '{') bracketCount++;
+            if (text[j] === '}') bracketCount--;
+            j++;
+        }
+        
+        if (bracketCount === 0) {
+            // 提取完整的 JSON 对象
+            const jsonContent = text.slice(contentStart, j);
+            try {
+                const parsed = JSON.parse(jsonContent);
+                results.push({
+                    nodeId,
+                    content: parsed
+                });
+            } catch (e) {
+                console.error(`Error parsing node ${nodeId}:`, e);
+            }
+        }
+        
+        i = j; // 移动到当前对象之后继续搜索
+    }
+    
+    return results;
+}
+
+function parseAllLoraInfo(text) {
+    console.log('Starting LoRA parsing...');
+    const loras = [];
+    
+    // 1. 尝试解析 ComfyUI 格式
+    try {
+        console.log('Attempting to parse ComfyUI format...');
+        
+        // 使用新的方法查找所有完整的 JSON 对象
+        const nodes = findCompleteJsonObjects(text);
+        console.log('Found nodes:', nodes.length);
+        
+        for (const node of nodes) {
+            try {
+                console.log('Processing node:', node.nodeId);
+                const nodeData = node.content;
+                
+                // 检查是否是 LoRA Stacker 节点
+                if (nodeData.class_type === 'LoRA Stacker' && nodeData.inputs) {
+                    console.log('Found LoRA Stacker node:', nodeData);
+                    
+                    const loraCount = parseInt(nodeData.inputs.lora_count) || 0;
+                    console.log('LoRA count:', loraCount);
+
+                    for (let i = 1; i <= loraCount; i++) {
+                        const nameKey = `lora_name_${i}`;
+                        const weightKey = `lora_wt_${i}`;
+                        const name = nodeData.inputs[nameKey];
+                        const weight = nodeData.inputs[weightKey];
+
+                        if (!name || name === 'None') {
+                            console.log(`Skipping empty or None LoRA at index ${i}`);
+                            continue;
+                        }
+
+                        const cleanName = name.split(/[/\\]/).pop()?.replace('.safetensors', '') || name;
+                        const parsedWeight = parseFloat(weight) || 1.0;
+
+                        console.log(`Processing LoRA ${i}:`, {
+                            originalName: name,
+                            cleanName: cleanName,
+                            weight: parsedWeight
+                        });
+
+                        loras.push({
+                            name: cleanName,
+                            weight: parsedWeight,
+                            source: 'comfyui',
+                            originalPath: name
+                        });
+                    }
+                }
+            } catch (parseError) {
+                console.log(`Error processing node ${node.nodeId}:`, parseError);
+                continue;
+            }
+        }
+    } catch (error) {
+        console.error('Error parsing ComfyUI LoRA info:', error);
+        console.log('Error context:', {
+            errorName: error.name,
+            errorMessage: error.message,
+            errorStack: error.stack
+        });
+    }
+    
+    // 2. 尝试解析 WebUI 格式
+    try {
+        const loraHashes = text.match(/Lora hashes:\s*"([^"]+)"/)?.[1]?.split(', ') || [];
+        for (const hash of loraHashes) {
+            const [name, hashValue] = hash.split(':');
+            if (name) {
+                const cleanName = name.replace(/^(?:lora|lyco)_/, '');
+                loras.push({
+                    name: cleanName,
+                    hash: hashValue,
+                    source: 'webui'
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error parsing WebUI LoRA hashes:', error);
+    }
+
+    console.log('Final parsed LoRAs:', loras);
+    return loras;
+}
+
 async function parseImage(url) {
     try {
         const response = await fetch(url);
         const blob = await response.blob();
         const text = await blob.text();
+        console.log('Image metadata length:', text.length);
+
+        // 查找所有节点
+        const nodeMatches = text.match(/"(\d+)":\s*({[^}]+})/g);
+        if (nodeMatches) {
+            console.log('Found nodes:', nodeMatches.length);
+            console.log('First node sample:', nodeMatches[0].substring(0, 100));
+        }
+
+        // 打印更多信息来定位问题
+        console.log('Looking for LoRA Stacker pattern...');
+        
+        // 尝试用不同的方式匹配 LoRA 相关内容
+        const stackerIndex = text.indexOf('LoRA Stacker');
+        if (stackerIndex !== -1) {
+            console.log('Found LoRA Stacker at index:', stackerIndex);
+            // 显示上下文
+            console.log('Context around LoRA Stacker:', 
+                text.substring(Math.max(0, stackerIndex - 100), 
+                             Math.min(text.length, stackerIndex + 100))
+            );
+        }
+
+        // 尝试查找 inputs 和 class_type
+        const inputsIndex = text.indexOf('"inputs"');
+        const classTypeIndex = text.indexOf('"class_type"');
+        
+        if (inputsIndex !== -1) {
+            console.log('Found "inputs" at index:', inputsIndex);
+            console.log('Context around inputs:', 
+                text.substring(Math.max(0, inputsIndex - 50), 
+                             Math.min(text.length, inputsIndex + 50))
+            );
+        }
+        
+        if (classTypeIndex !== -1) {
+            console.log('Found "class_type" at index:', classTypeIndex);
+            console.log('Context around class_type:', 
+                text.substring(Math.max(0, classTypeIndex - 50), 
+                             Math.min(text.length, classTypeIndex + 50))
+            );
+        }
+
+        // 修改正则表达式的匹配模式，使其更宽松
+        const stackerRegex = /"(\d+)":\s*(\{[^{}]*"class_type"\s*:\s*"LoRA Stacker"[^}]*\})/g;
+        const matches = Array.from(text.matchAll(stackerRegex));
+        console.log('LoRA Stacker regex matches:', matches.length);
+
+        if (matches.length > 0) {
+            matches.forEach((match, i) => {
+                console.log(`Match ${i + 1}:`, {
+                    nodeId: match[1],
+                    content: match[2].substring(0, 100) + '...'
+                });
+            });
+        }
+
+        // 尝试查找任何包含 "LoRA" 或 "Stacker" 的内容
+        const loraRelated = text.match(/.{0,50}(LoRA|Stacker).{0,50}/g);
+        if (loraRelated) {
+            console.log('Found LoRA related content:', loraRelated);
+        }
+
         let hasAnyValidData = false;
 
         // 解析提示词
@@ -121,12 +316,24 @@ async function parseImage(url) {
             hasAnyValidData = true;
         }
 
+        // 解析所有 LoRA 信息
+        const loras = parseAllLoraInfo(text);
+        if (loras.length > 0) {
+            console.log('Successfully parsed LoRAs:', loras);
+            generationParams.value.loras = loras;
+            hasAnyValidData = true;
+        } else {
+            console.log('No LoRAs found in image metadata');
+            // 打印一段原始文本用于调试
+            console.log('Sample of image metadata:', text.substring(0, 1000));
+        }
+
         if (!hasAnyValidData) {
             errorMessage.value = '无法解析图片中的提示信息';
         }
     } catch (error) {
-        errorMessage.value = '解析图片失败';
         console.error('Error parsing image:', error);
+        errorMessage.value = '解析图片失败';
     }
 }
 
@@ -192,25 +399,18 @@ function fallbackCopy(text) {
     document.body.removeChild(textArea);
 }
 
-function handleLoraClick(hash) {
-    console.log('Clicked LoRA hash:', hash);
-    const [loraName, loraHash] = hash.split(':');
-    const cleanName = loraName.replace(/^(?:lora|lyco)_/, '');
-    console.log('Cleaned name:', cleanName);
+// 修改 handleLoraClick 函数以支持两种格式
+function handleLoraClick(lora) {
+    const searchName = lora.name;
+    console.log('Searching for LoRA:', searchName);
     
-    const results = findLorasByName(cleanName);
+    const results = findLorasByName(searchName);
     if (results.length === 0) {
-        console.log('No LoRA found');
-        // 可以添加提示
         alert('未找到相关 LoRA');
     } else if (results.length === 1) {
-        // 只有一个结果时直接打开
-        console.log('Found single LoRA:', results[0]);
         globalState.openLoraDetail(results[0]);
     } else {
-        // 多个结果时显示选择面板
-        console.log('Found multiple LoRAs:', results);
-        globalState.openSearchResults(results, cleanName);
+        globalState.openSearchResults(results, searchName);
     }
 }
 
@@ -288,17 +488,24 @@ function handleOverlayClick(e) {
                                 </div>
                                 <!-- 其他参数... -->
                             </div>
-                            
-                            <!-- LoRA Hashes -->
-                            <div v-if="generationParams.loraHashes.length" class="lora-hashes">
-                                <h3>Used LoRAs</h3>
-                                <div class="hash-list">
-                                    <button v-for="hash in generationParams.loraHashes" 
-                                            :key="hash" 
-                                            class="hash-item"
-                                            @click="handleLoraClick(hash)">
-                                        {{ hash }}
-                                    </button>
+                        </div>
+
+                        <!-- 统一的 LoRA 展示部分 -->
+                        <div v-if="generationParams.loras?.length" class="lora-section">
+                            <h3>使用的 LoRA</h3>
+                            <div class="lora-list">
+                                <div v-for="lora in generationParams.loras" 
+                                     :key="lora.name"
+                                     class="lora-item"
+                                     @click="handleLoraClick(lora)">
+                                    <span class="lora-name">{{ lora.name }}</span>
+                                    <span v-if="lora.weight" class="lora-weight">× {{ lora.weight }}</span>
+                                    <span v-if="lora.hash" class="lora-hash" :title="lora.hash">
+                                        #{{ lora.hash.substring(0, 8) }}
+                                    </span>
+                                    <span class="lora-source" :title="lora.source === 'comfyui' ? 'ComfyUI' : 'WebUI'">
+                                        {{ lora.source === 'comfyui' ? '🔧' : '🌐' }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -480,6 +687,59 @@ copy-btn:hover.success {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.lora-section {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.lora-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+.lora-item {
+    background: #e3f2fd;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.lora-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: #bbdefb;
+}
+
+.lora-name {
+    color: #1976d2;
+    font-weight: 500;
+}
+
+.lora-weight {
+    color: #666;
+}
+
+.lora-hash {
+    color: #666;
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.lora-source {
+    font-size: 1rem;
+    opacity: 0.7;
+    margin-left: auto;
 }
 
 h2 {
