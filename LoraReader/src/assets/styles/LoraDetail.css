@@ -27,7 +27,7 @@
     width: 95%;
     max-width: 1000px;
     max-height: 80vh;
-    overflow-y: auto;
+    overflow: visible; /* 改为 visible，让上传面板可以超出容器 */
     position: relative;
     padding: 1rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
@@ -53,8 +53,10 @@
     gap: 1rem;
     width: 100%;
     align-items: start;
+    position: relative; /* 添加相对定位，作为上传面板的定位上下文 */
+    overflow-y: auto; /* 滚动条移到这里 */
+    max-height: calc(80vh - 2rem); /* 减去padding空间 */
 }
-
 
 .preview-section {
     position: sticky;
@@ -181,7 +183,7 @@
 }
 
 .upload-box {
-    position: fixed;
+    position: absolute; /* 改为 absolute */
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -194,13 +196,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1100;
-    transition: border-color 0.3s ease, transform 0.3s ease; /* 修改这里 */
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .upload-box:hover {
     border-color: #2196f3;
-    /* 移除 transform: scale(1.02); */
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
 }
 
 .upload-content {
