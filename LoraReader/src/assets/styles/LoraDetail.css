@@ -1,4 +1,3 @@
-
 .fade-enter-active,
 .fade-leave-active {
     transition: opacity 0.3s ease;
@@ -23,15 +22,17 @@
 }
 
 .detail-card {
-    background: white;
-    border-radius: 12px;
+    background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+    border-radius: 16px;
     width: 90%;
-    max-width: 800px;
-    max-height: 70vh;
+    max-width: 1000px;
+    max-height: 80vh;
     overflow-y: auto;
     position: relative;
     padding: 2rem;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
 }
 
 .close-btn {
@@ -50,9 +51,13 @@
 .content-wrapper {
     display: flex;
     gap: 2rem;
+    align-items: start;
 }
 
+
 .preview-section {
+    position: sticky;
+    top: 1rem;
     flex: 1;
     max-width: 50%;
     display: flex;
@@ -60,27 +65,44 @@
 }
 
 .info-section {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     flex: 1;
 }
 
 .preview-container {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
 .image-wrapper {
+    position: relative;
     width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
     background: #f8f9fa;
     border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.image-wrapper:hover {
+    transform: scale(1.02);
 }
 
 .preview-image {
     max-width: 100%;
-    max-height: 400px;
+    max-height: 100%;
     object-fit: contain;
 }
 
@@ -92,57 +114,49 @@
 
 .preview-controls {
     display: flex;
-    gap: 1.5rem;
-    align-items: center;
-    padding: 1rem 0;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0.5rem;
 }
 
 .nav-btn, .add-btn, .set-main-btn {
     position: relative;
+    min-width: 3rem;
+    height: 3rem;
     border: none;
-    padding: 0.8rem 1.2rem;
-    border-radius: 8px;
-    cursor: pointer;
+    border-radius: 12px;
+    background: white;
+    color: #666;
     font-size: 1.2rem;
-    transition: all 0.3s ease;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     overflow: visible;
 }
 
-.nav-btn {
-    background: linear-gradient(135deg, #2196f3, #1976d2);
-    color: white;
-    min-width: 3rem;
-}
-
-.add-btn {
-    background: linear-gradient(135deg, #4caf50, #388e3c);
-    color: white;
-    min-width: 3rem;
-}
-
-.set-main-btn {
-    background: linear-gradient(135deg, #ffd700, #ffa000);
-    color: white;
-    min-width: 3rem;
-}
-
-.nav-btn:hover:not(:disabled),
-.add-btn:hover,
-.set-main-btn:hover {
+.nav-btn:hover, .add-btn:hover, .set-main-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.nav-btn:active:not(:disabled),
-.add-btn:active,
-.set-main-btn:active {
-    transform: translateY(0);
+.nav-btn:active, .add-btn:active, .set-main-btn:active {
+    transform: translateY(1px);
 }
 
 .nav-btn:disabled {
     background: #ccc;
     cursor: not-allowed;
     transform: none;
+}
+
+.add-btn {
+    background: #4caf50;
+    color: white;
+}
+
+.set-main-btn {
+    background: #ffd700;
+    color: #333;
 }
 
 .btn-tooltip {
@@ -234,27 +248,44 @@
 }
 
 .title {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-    color: #333;
+    font-size: 1.8rem;
+    color: #1a1a1a;
+    margin-bottom: 2rem;
+    font-weight: 600;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 1rem;
 }
 
 .metadata-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
 }
 
 .metadata-item {
-    padding: 1rem;
     background: #f8f9fa;
-    border-radius: 8px;
+    padding: 1.2rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.metadata-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .label {
-    display: block;    font-size: 0.9rem;    color: #666;    margin-bottom: 0.5rem;}.value {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.value {
     font-size: 1.1rem;
-    color: #333;
+    color: #1a1a1a;
     font-weight: 500;
 }
 
@@ -265,6 +296,9 @@
 
 .config-section {
     margin-top: 2rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 2rem;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -277,8 +311,9 @@
 }
 
 .config-title {
-    font-size: 1rem;
-    color: #666;
+    font-size: 1.2rem;
+    color: #1a1a1a;
+    font-weight: 600;
     margin-bottom: 0.5rem;
 }
 
@@ -321,12 +356,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .edit-btn, .save-btn {
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
     border: none;
     cursor: pointer;
     font-size: 0.9rem;
@@ -334,8 +369,8 @@
 }
 
 .edit-btn {
-    background: #f0f0f0;
-    color: #666;
+    background: #e0e0e0;
+    color: #333;
 }
 
 .save-btn {
@@ -343,27 +378,25 @@
     color: white;
 }
 
-.edit-btn:hover {
-    background: #e0e0e0;
-}
-
-.save-btn:hover {
-    background: #388e3c;
+.edit-btn:hover, .save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .config-input {
     width: 100%;
-    padding: 0.8rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 0.9rem;
+    padding: 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
     background: white;
     transition: all 0.3s ease;
+    margin-bottom: 1rem;
 }
 
 .config-input:focus {
-    border-color: #4a90e2;
-    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
+    border-color: #2196f3;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
     outline: none;
 }
 
@@ -426,4 +459,32 @@
     color: #666;
     padding: 0.5rem;
     line-height: 1;
+}
+
+/* 动画效果 */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.metadata-item, .config-section {
+    animation: slideIn 0.3s ease-out forwards;
+}
+
+/* 响应式优化 */
+@media (max-width: 1024px) {
+    .content-wrapper {
+        grid-template-columns: 1fr;
+    }
+
+    .preview-section {
+        position: relative;
+        top: 0;
+    }
 }

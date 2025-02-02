@@ -1,7 +1,6 @@
 <script setup>
 import { defineProps, defineEmits, ref, onMounted, watch } from 'vue';
 import '@/assets/styles/LoraDetail.css';
-import ImageDetail from './ImageDetail.vue';
 import { globalState } from '../utils/globalVar';
 
 const props = defineProps({
@@ -501,44 +500,5 @@ watch(() => props.show, (newVal) => {
 </template>
 
 <style scoped>
-.overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 
-/* ...rest of existing styles... */
-
-.model-select {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
-    color: #333;
-    background-color: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.model-select:hover {
-    border-color: #4a90e2;
-}
-
-.model-select:focus {
-    border-color: #4a90e2;
-    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.1);
-    outline: none;
-}
-
-.value.custom {
-    color: #4a90e2;
-    font-weight: 500;
-}
 </style>
