@@ -485,15 +485,16 @@ async function selectLora(loraName) {
     } else if (results.length === 1) {
         return results[0];
     } else {
-        // 创建一个 Promise 来等待用户选择
         return new Promise((resolve) => {
-            // 保存回调函数到 globalState，用于后续处理
-            globalState.searchCallback = (selectedLora) => {
-                globalState.closeSearchResults();
-                resolve(selectedLora);
-            };
-            // 打开搜索结果面板
-            globalState.openSearchResults(results, loraName);
+            globalState.openSearchResults(
+                results, 
+                loraName, 
+                (selectedLora) => {
+                    globalState.closeSearchResults();
+                    resolve(selectedLora);
+                },
+                'copyComfyUI'  // 添加类型标识
+            );
         });
     }
 }
@@ -964,4 +965,3 @@ h3 {
     margin-bottom: 0.75rem;
 }
 </style>
-``` 

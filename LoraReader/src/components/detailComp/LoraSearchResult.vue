@@ -55,8 +55,16 @@ function loadMore() {
 }
 
 function handleLoraSelect(lora) {
-    if (globalState.searchCallback) {
-        globalState.searchCallback(lora);
+    if (globalState.searchMode.value === 'browse') {
+        // 浏览模式：打开详情面板
+        globalState.openLoraDetail(lora);
+        emit('close');
+    } else if (globalState.searchMode.value === 'select' || globalState.searchMode.value === 'custom') {
+        // 选择模式或自定义模式：执行回调
+        if (globalState.searchCallback) {
+            globalState.searchCallback(lora);
+        }
+        // 不自动关闭，让调用方决定是否关闭
     }
 }
 
@@ -91,7 +99,11 @@ const currentSort = ref('relevance');
                 <div class="content">
                     <div class="search-header">
                         <h2 class="search-title">
-                            搜索结果: "{{ searchTerm }}"
+                            {{ 
+                                globalState.searchMode.value === 'select' ? '选择LoRA' : 
+                                globalState.searchMode.value === 'browse' ? '搜索结果' : 
+                                '选择LoRA'
+                            }}: "{{ searchTerm }}"
                             <span class="result-count">(共 {{ searchResults.length }} 个)</span>
                         </h2>
                         <div class="sort-control">

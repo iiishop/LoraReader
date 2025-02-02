@@ -183,15 +183,27 @@ export const globalState = {
     searchResults: ref([]),
     showSearchResults: ref(false),
     searchTerm: ref(''),
-    searchCallback: null, // 添加回调函数存储
+    searchMode: ref('browse'),  // 'browse', 'select', 'custom'
+    searchCallback: null,
+    searchCallbackType: null,  // 用于标识回调类型
     
     // 添加新方法
-    openSearchResults(results, searchTerm, callback) {
+    openSearchResults(results, searchTerm, callbackOrType, type = null) {
         this.searchResults.value = results;
         this.searchTerm.value = searchTerm;
         this.showSearchResults.value = true;
-        if (callback) {
-            this.searchCallback = callback;
+
+        if (typeof callbackOrType === 'function') {
+            // 如果传入的是函数，则视为回调
+            this.searchCallback = callbackOrType;
+            this.searchMode.value = 'custom';
+            this.searchCallbackType = type;
+        } else if (callbackOrType === true) {
+            // 兼容旧的用法，true 表示选择模式
+            this.searchMode.value = 'select';
+        } else {
+            // 默认为浏览模式
+            this.searchMode.value = 'browse';
         }
     },
     
@@ -200,6 +212,8 @@ export const globalState = {
         this.searchResults.value = [];
         this.searchTerm.value = '';
         this.searchCallback = null;
+        this.searchMode.value = 'browse';
+        this.searchCallbackType = null;
     }
 };
 
