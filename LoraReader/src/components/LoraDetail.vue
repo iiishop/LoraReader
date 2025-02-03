@@ -207,7 +207,8 @@ function startEditing() {
         preferred_weight: props.lora.config?.preferred_weight || 0,
         notes: props.lora.config?.notes || '',
         description: props.lora.config?.description || '',
-        base_model: props.lora.config?.base_model || props.lora.metadata?.base_model || ''
+        base_model: props.lora.config?.base_model || props.lora.metadata?.base_model || '',
+        civitai_link: props.lora.config?.civitai_link || '' // 添加 civitai 链接字段
     };
     selectedBaseModel.value = editedConfig.value.base_model;
     isEditing.value = true;
@@ -444,6 +445,16 @@ watch(() => props.show, (newVal) => {
                                         rows="5"
                                     ></textarea>
                                 </div>
+
+                                <div class="config-item">
+                                    <h3 class="config-title">Civitai 链接</h3>
+                                    <input 
+                                        type="text" 
+                                        v-model="editedConfig.civitai_link"
+                                        class="config-input civitai-link"
+                                        placeholder="请输入 Civitai 模型页面链接"
+                                    />
+                                </div>
                             </template>
                             <template v-else>
                                 <template v-if="lora.has_config">
@@ -480,6 +491,18 @@ watch(() => props.show, (newVal) => {
                                         <h3 class="config-title">描述</h3>
                                         <div class="config-content description">
                                             {{ lora.config.description }}
+                                        </div>
+                                    </div>
+
+                                    <div v-if="lora.config.civitai_link" class="config-item">
+                                        <h3 class="config-title">Civitai 链接</h3>
+                                        <div class="config-content civitai-link">
+                                            <a :href="lora.config.civitai_link" 
+                                               target="_blank" 
+                                               rel="noopener noreferrer"
+                                               class="civitai-link">
+                                                访问 Civitai 页面
+                                            </a>
                                         </div>
                                     </div>
                                 </template>
