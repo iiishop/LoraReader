@@ -564,17 +564,39 @@ def update_lora_config():
             'base_model': config.get('base_model', '')  # 添加基础模型
         }
 
-        # 如果目录不存在则创建
+        # 添加日志以便追踪
+        logger.info(f"Saving config to: {config_path}")
+        logger.info(f"Config data: {config_data}")
+
+        # 如果目录不存在则创建 - 修改这里的创建逻辑
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
-        # 写入文件
-        with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(config_data, f, indent=4, ensure_ascii=False)
+        # 写入文件前检查路径和权限
+        try:
+            # 先尝试创建一个临时文件来测试写入权限
+            temp_path = os.path.join(current_path, f"temp_{uuid.uuid4()}.tmp")
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                f.write('test')
+            os.remove(temp_path)
+            
+            # 写入实际的配置文件
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=4, ensure_ascii=False)
+            
+            logger.info(f"Successfully saved config to: {config_path}")
+            
+            return jsonify({
+                'status': 'success',
+                'has_config': True,
+                'config_path': config_path  # 返回配置文件路径以便调试
+            })
 
-        return jsonify({
-            'status': 'success',
-            'has_config': True  # 返回更新后的状态
-        })
+        except PermissionError as e:
+            logger.error(f"Permission error writing config: {e}")
+            return jsonify({'error': 'Permission denied when writing config'}), 403
+        except Exception as e:
+            logger.error(f"Error writing config file: {e}")
+            return jsonify({'error': f'Failed to write config: {str(e)}'}), 500
 
     except Exception as e:
         logger.error(f"Error updating lora config: {e}")

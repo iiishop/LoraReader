@@ -221,6 +221,12 @@ async function saveConfig() {
             base_model: selectedBaseModel.value
         };
         
+        console.log('Saving config:', {
+            path: props.currentPath,
+            lora_name: props.lora.base_name,
+            config: configToSave
+        });
+
         const response = await fetch('http://localhost:5000/update-config', {
             method: 'POST',
             headers: {
@@ -233,21 +239,29 @@ async function saveConfig() {
             })
         });
 
-        if (response.ok) {
-            const result = await response.json();
-            props.lora.config = configToSave;
-            props.lora.has_config = result.has_config;
-            // 更新元数据中的基础模型（最高优先级）
-            if (props.lora.metadata) {
-                props.lora.metadata.base_model = selectedBaseModel.value;
-            }
-            isEditing.value = false;
-        } else {
-            alert('保存失败');
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || '保存失败');
         }
+
+        // 更新本地数据
+        props.lora.config = configToSave;
+        props.lora.has_config = true;
+        
+        // 更新元数据中的基础模型（最高优先级）
+        if (props.lora.metadata) {
+            props.lora.metadata.base_model = selectedBaseModel.value;
+        }
+        
+        isEditing.value = false;
+        
+        // 添加成功提示
+        alert('配置保存成功！');
+        
     } catch (error) {
         console.error('保存配置失败:', error);
-        alert('保存失败');
+        alert(error.message || '保存失败');
     }
 }
 
