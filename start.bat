@@ -1,238 +1,299 @@
-REM filepath: /f:/FromGitHub/LoraReader/start.bat
 @echo off
-chcp 65001 >nul
+:: ÖĞÎÄ±àÂë·½°¸Ñ¡Ôñ£¨¶şÑ¡Ò»£©
+:: ·½°¸1: ANSI + GBK (Ä¬ÈÏÖĞÎÄ»·¾³)
+chcp 936 >nul
+
+:: ·½°¸2: UTF-8 + 65001 (ĞèÅäÖÃ¿ØÖÆÌ¨×ÖÌå)
+:: chcp 65001 >nul
+
+:: »ñÈ¡ ANSI ×ªÒå×Ö·û
+for /f %%i in ('powershell -command "Write-Host ([char]27)"') do set "ESC=%%i"
+
+:: ÉèÖÃÑÕÉ«´úÂë
+set "GREEN=%ESC%[32m"
+set "BLUE=%ESC%[34m"
+set "RED=%ESC%[31m"
+set "YELLOW=%ESC%[33m"
+set "RESET=%ESC%[0m"
+
+:: ÆôÓÃĞéÄâÖÕ¶ËÖ§³Ö
+reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f >nul 2>&1
+
 title LoraReader
+setlocal enabledelayedexpansion
 
-:: è®¾ç½®é¢œè‰²ä»£ç 
-set "GREEN=[32m"
-set "BLUE=[34m"
-set "RED=[31m"
-set "YELLOW=[33m"
-set "RESET=[0m"
+:: ºóĞø½Å±¾ÄÚÈİ±£³Ö²»±ä...
 
-:: è®¾ç½®æ‰€éœ€çš„ç‰ˆæœ¬å’Œä¸‹è½½é“¾æ¥
+:: ÉèÖÃËùĞèµÄ°æ±¾ºÍÏÂÔØÁ´½Ó
 set REQUIRED_PYTHON=3.11.9
 set REQUIRED_NODE=22.13.1
 set PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
 set NODE_URL=https://nodejs.org/dist/v22.13.1/node-v22.13.1-x64.msi
 set GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.43.0.windows.1/Git-2.43.0-64-bit.exe
 
-:: åˆ›å»ºä¸´æ—¶ä¸‹è½½ç›®å½•
+:: ´´½¨ÁÙÊ±ÏÂÔØÄ¿Â¼
 if not exist "temp" mkdir temp
 
-:: æ˜¾ç¤ºæ¬¢è¿ç•Œé¢
+:: ÏÔÊ¾»¶Ó­½çÃæ
 :welcome
 cls
-echo %BLUE%â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-echo â•‘         LoraReader å¯åŠ¨ç®¡ç†å™¨         â•‘
-echo â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•%RESET%
+echo %BLUE%¨X¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨[
+echo ¨U         LoraReader Æô¶¯¹ÜÀíÆ÷         ¨U
+echo ¨^¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨a%RESET%
 echo.
-echo %GREEN%[ç³»ç»Ÿæ£€æŸ¥]%RESET%
-echo  æ­£åœ¨æ£€æŸ¥ç³»ç»Ÿç¯å¢ƒ...
+echo %GREEN%[ÏµÍ³¼ì²é]%RESET%
+echo  ÕıÔÚ³õÊ¼»¯»·¾³...
 
-:: è¿›åº¦æ¡åŠ¨ç”»
-setlocal enabledelayedexpansion
-for /L %%i in (1,1,20) do (
-    set "progress="
-    for /L %%j in (1,1,%%i) do set "progress=!progress!â– "
-    echo [!progress!%RESET%] %%i%%0^%% \r
+:: ¼ò»¯³õÊ¼»¯¶¯»­
+for /L %%i in (1,1,3) do (
+    <nul set /p "=."
     ping -n 1 localhost >nul
 )
 echo.
-echo %GREEN%[å®Œæˆ]%RESET% ç³»ç»Ÿæ£€æŸ¥å®Œæˆ
+echo %GREEN%[Íê³É]%RESET% »·¾³×¼±¸¾ÍĞ÷
 timeout /t 1 >nul
 
-:: æ£€æŸ¥å¹¶å®‰è£…ä¾èµ–
-:check_dependencies
-echo.
-echo %YELLOW%[ä¾èµ–æ£€æŸ¥]%RESET%
-echo å³å°†æ£€æŸ¥å¹¶å®‰è£…ä»¥ä¸‹ç»„ä»¶:
-echo  %BLUE%â–¸%RESET% Git
-echo  %BLUE%â–¸%RESET% Python %REQUIRED_PYTHON%
-echo  %BLUE%â–¸%RESET% Node.js %REQUIRED_NODE%
-echo.
-choice /c YN /m "æ˜¯å¦ç»§ç»­å®‰è£…? (Y=æ˜¯/N=å¦)"
-if errorlevel 2 exit
-if errorlevel 1 goto install
-
-:install
+:: Ö÷°²×°Á÷³Ì
+:main
 cls
-echo ================================
-echo Checking dependencies... (æ£€æŸ¥ä¾èµ–...)
-echo ================================
+echo %BLUE%[ÒÀÀµ¼ì²é]%RESET%
+set NEED_INSTALL=0
 
-:: æ£€æŸ¥ Git
-git --version >nul 2>&1
-if errorlevel 1 (
-    echo Git is not installed. Downloading... (æœªå®‰è£… Gitï¼Œæ­£åœ¨ä¸‹è½½...)
-    powershell -Command "& {Invoke-WebRequest -Uri '%GIT_URL%' -OutFile 'temp\git-installer.exe'}"
-    echo Installing Git... (æ­£åœ¨å®‰è£… Git...)
-    start /wait temp\git-installer.exe /VERYSILENT /NORESTART
-    if errorlevel 1 (
-        echo Failed to install Git. (Git å®‰è£…å¤±è´¥)
-        echo Please download and install manually from: (è¯·æ‰‹åŠ¨ä¸‹è½½å®‰è£…:)
-        echo https://git-scm.com/downloads
-        pause
-        exit
+:: ¼ì²é Git °²×°
+echo %BLUE%?%RESET% ¼ì²é Git...
+where git >nul 2>&1
+if %errorlevel% neq 0 (
+    echo   %RED%?%RESET% Git Î´°²×°
+    set NEED_INSTALL=1
+) else (
+    for /f "tokens=3" %%i in ('git --version') do (
+        echo   %GREEN%?%RESET% Git ÒÑ°²×° (°æ±¾: %%i)
     )
 )
 
-:: æ£€æŸ¥ Python ç‰ˆæœ¬
-python --version 2>nul | find "%REQUIRED_PYTHON%" >nul
-if errorlevel 1 (
-    echo Python %REQUIRED_PYTHON% is not installed. Downloading... (æœªå®‰è£…æŒ‡å®šç‰ˆæœ¬çš„ Pythonï¼Œæ­£åœ¨ä¸‹è½½...)
-    powershell -Command "& {Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile 'temp\python-installer.exe'}"
-    echo Installing Python... (æ­£åœ¨å®‰è£… Python...)
-    start /wait temp\python-installer.exe /quiet InstallAllUsers=1 PrependPath=1
-    if errorlevel 1 (
-        echo Failed to install Python. (Python å®‰è£…å¤±è´¥)
-        echo Please download and install manually from: (è¯·æ‰‹åŠ¨ä¸‹è½½å®‰è£…:)
-        echo https://www.python.org/downloads/release/python-3119/
-        pause
-        exit
+:: ¼ì²é Python °²×°
+echo %BLUE%?%RESET% ¼ì²é Python...
+where python >nul 2>&1
+if %errorlevel% neq 0 (
+    echo   %RED%?%RESET% Python Î´°²×°
+    set NEED_INSTALL=1
+) else (
+    for /f "tokens=2" %%i in ('python --version 2^>^&1') do (
+        if "%%i" neq "%REQUIRED_PYTHON%" (
+            echo   %YELLOW%!%RESET% ĞèÒª Python %REQUIRED_PYTHON%£¬µ±Ç°°æ±¾: %%i
+            set NEED_INSTALL=1
+        ) else (
+            echo   %GREEN%?%RESET% Python ÒÑ°²×° (°æ±¾: %%i)
+        )
     )
 )
 
-:: æ£€æŸ¥ Node.js ç‰ˆæœ¬
-node --version 2>nul | find "v%REQUIRED_NODE%" >nul
-if errorlevel 1 (
-    echo Node.js %REQUIRED_NODE% is not installed. Downloading... (æœªå®‰è£…æŒ‡å®šç‰ˆæœ¬çš„ Node.jsï¼Œæ­£åœ¨ä¸‹è½½...)
-    powershell -Command "& {Invoke-WebRequest -Uri '%NODE_URL%' -OutFile 'temp\node-installer.msi'}"
-    echo Installing Node.js... (æ­£åœ¨å®‰è£… Node.js...)
-    start /wait msiexec /i temp\node-installer.msi /quiet /norestart
-    if errorlevel 1 (
-        echo Failed to install Node.js. (Node.js å®‰è£…å¤±è´¥)
-        echo Please download and install manually from: (è¯·æ‰‹åŠ¨ä¸‹è½½å®‰è£…:)
-        echo https://nodejs.org/
-        pause
-        exit
+:: ¼ì²é Node.js °²×°
+echo %BLUE%?%RESET% ¼ì²é Node.js...
+where node >nul 2>&1
+if %errorlevel% neq 0 (
+    echo   %RED%?%RESET% Node.js Î´°²×°
+    set NEED_INSTALL=1
+) else (
+    for /f "tokens=1 delims=v" %%i in ('node --version') do (
+        if "%%i" neq "%REQUIRED_NODE%" (
+            echo   %YELLOW%!%RESET% ĞèÒª Node.js %REQUIRED_NODE%£¬µ±Ç°°æ±¾: %%i
+            set NEED_INSTALL=1
+        ) else (
+            echo   %GREEN%?%RESET% Node.js ÒÑ°²×° (°æ±¾: %%i)
+        )
     )
 )
 
-:: åˆ›å»ºå¹¶æ¿€æ´»è™šæ‹Ÿç¯å¢ƒ
+:: ÅĞ¶ÏÊÇ·ñĞèÒª°²×°
+if %NEED_INSTALL% equ 1 (
+    echo.
+    echo %YELLOW%[ÌáÊ¾]%RESET% ¼ì²âµ½È±ÉÙ±ØÒª×é¼ş»ò°æ±¾²»·û
+    choice /c YN /m "ÊÇ·ñÁ¢¼´°²×°/¸üĞÂ? (Y/N)"
+    if errorlevel 2 (
+        echo %RED%[´íÎó]%RESET% ±ØĞë°²×°ËùÓĞÒÀÀµ²ÅÄÜ¼ÌĞø
+        pause
+        exit
+    )
+    goto do_install
+) else (
+    echo.
+    echo %GREEN%[Í¨¹ı]%RESET% ËùÓĞÒÀÀµ¼ì²éÕı³£
+    timeout /t 2 >nul
+    goto setup_env
+)
+
+:: °²×°×é¼şÁ÷³Ì
+:do_install
+cls
+echo %BLUE%[×é¼ş°²×°]%RESET%
+
+:: °²×° Git
+where git >nul 2>&1
+if %errorlevel% neq 0 (
+    echo %BLUE%?%RESET% ÕıÔÚ°²×° Git...
+    powershell -Command "Invoke-WebRequest '%GIT_URL%' -OutFile 'temp\git_install.exe'" || (
+        echo %RED%[´íÎó]%RESET% ÏÂÔØ Git Ê§°Ü
+        choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+        if errorlevel 2 exit
+    )
+    start /wait "" temp\git_install.exe /VERYSILENT /NORESTART
+    set "PATH=%ProgramFiles%\Git\cmd;%PATH%"
+    echo %GREEN%?%RESET% Git °²×°Íê³É
+)
+
+:: °²×° Python
+where python >nul 2>&1
+if %errorlevel% neq 0 (
+    echo %BLUE%?%RESET% ÕıÔÚ°²×° Python...
+    powershell -Command "Invoke-WebRequest '%PYTHON_URL%' -OutFile 'temp\python_install.exe'" || (
+        echo %RED%[´íÎó]%RESET% ÏÂÔØ Python Ê§°Ü
+        choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+        if errorlevel 2 exit
+    )
+    start /wait "" temp\python_install.exe /quiet InstallAllUsers=1 PrependPath=1
+    set "PATH=%ProgramFiles%\Python311;%PATH%"
+    echo %GREEN%?%RESET% Python °²×°Íê³É
+) else (
+    for /f "tokens=2" %%i in ('python --version 2^>^&1') do (
+        if "%%i" neq "%REQUIRED_PYTHON%" (
+            echo %BLUE%?%RESET% ÕıÔÚÉı¼¶ Python...
+            powershell -Command "Invoke-WebRequest '%PYTHON_URL%' -OutFile 'temp\python_install.exe'" || (
+                echo %RED%[´íÎó]%RESET% ÏÂÔØ Python Ê§°Ü
+                choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+                if errorlevel 2 exit
+            )
+            start /wait "" temp\python_install.exe /quiet InstallAllUsers=1 PrependPath=1 /upgrade
+            set "PATH=%ProgramFiles%\Python311;%PATH%"
+            echo %GREEN%?%RESET% Python Éı¼¶Íê³É
+        )
+    )
+)
+
+:: °²×° Node.js
+where node >nul 2>&1
+if %errorlevel% neq 0 (
+    echo %BLUE%?%RESET% ÕıÔÚ°²×° Node.js...
+    powershell -Command "Invoke-WebRequest '%NODE_URL%' -OutFile 'temp\node_install.msi'" || (
+        echo %RED%[´íÎó]%RESET% ÏÂÔØ Node.js Ê§°Ü
+        choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+        if errorlevel 2 exit
+    )
+    msiexec /i temp\node_install.msi /quiet /norestart
+    set "PATH=%ProgramFiles%\nodejs;%PATH%"
+    echo %GREEN%?%RESET% Node.js °²×°Íê³É
+) else (
+    for /f "tokens=1 delims=v" %%i in ('node --version') do (
+        if "%%i" neq "%REQUIRED_NODE%" (
+            echo %BLUE%?%RESET% ÕıÔÚÉı¼¶ Node.js...
+            powershell -Command "Invoke-WebRequest '%NODE_URL%' -OutFile 'temp\node_install.msi'" || (
+                echo %RED%[´íÎó]%RESET% ÏÂÔØ Node.js Ê§°Ü
+                choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+                if errorlevel 2 exit
+            )
+            msiexec /i temp\node_install.msi /quiet /norestart
+            set "PATH=%ProgramFiles%\nodejs;%PATH%"
+            echo %GREEN%?%RESET% Node.js Éı¼¶Íê³É
+        )
+    )
+)
+
+:: »·¾³³õÊ¼»¯
+:setup_env
+echo.
+echo %BLUE%[»·¾³³õÊ¼»¯]%RESET%
+
+:: ´´½¨ Python ĞéÄâ»·¾³
 if not exist ".venv" (
-    echo Creating Python virtual environment... (åˆ›å»º Python è™šæ‹Ÿç¯å¢ƒ...)
-    python -m venv .venv
-    if errorlevel 1 (
-        echo Failed to create virtual environment. (åˆ›å»ºè™šæ‹Ÿç¯å¢ƒå¤±è´¥)
-        pause
-        exit
+    echo %BLUE%?%RESET% ÕıÔÚ´´½¨ĞéÄâ»·¾³...
+    python -m venv .venv || (
+        echo %RED%[´íÎó]%RESET% ĞéÄâ»·¾³´´½¨Ê§°Ü
+        choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+        if errorlevel 2 exit
     )
 )
 
-:: æ¸…ç†ä¸´æ—¶æ–‡ä»¶
-if exist "temp" rd /s /q temp
-
-:: å®‰è£…ä¾èµ–å‡½æ•°
-:install_dependencies
-echo Installing Python requirements... (å®‰è£… Python ä¾èµ–...)
-call .venv\Scripts\activate && python -m pip install --upgrade pip && pip install -r requirements.txt
-if errorlevel 1 (
-    echo Failed to install Python requirements. (Python ä¾èµ–å®‰è£…å¤±è´¥)
-    pause
-    exit
+:: °²×° Python ÒÀÀµ
+echo %BLUE%?%RESET% ÕıÔÚ°²×° Python ÒÀÀµ...
+call .venv\Scripts\activate
+pip install --upgrade pip || (
+    echo %RED%[´íÎó]%RESET% pip Éı¼¶Ê§°Ü
+    choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+    if errorlevel 2 exit
+)
+pip install -r requirements.txt || (
+    echo %RED%[´íÎó]%RESET% ÒÀÀµ°²×°Ê§°Ü
+    choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+    if errorlevel 2 exit
 )
 
-echo Installing Node.js dependencies... (å®‰è£… Node.js ä¾èµ–...)
-cd LoraReader && npm install
-if errorlevel 1 (
-    echo Failed to install Node.js dependencies. (Node.js ä¾èµ–å®‰è£…å¤±è´¥)
-    pause
-    exit
-)
-cd ..
+:: °²×° Node.js ÒÀÀµ
+echo %BLUE%?%RESET% ÇëÊÖ¶¯°²×° Node.js ÒÀÀµ...
+echo %YELLOW%[ÌáÊ¾]%RESET% ÇëÊÖ¶¯´ò¿ªµÄ´°¿ÚÖĞÖ´ĞĞÒÔÏÂÃüÁî:
+echo   cd LoraReader
+echo   npm install 
 
-:: ä¸»èœå•ç•Œé¢
+:: Ö÷²Ëµ¥½çÃæ
 :menu
 cls
-echo %BLUE%â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-echo â•‘            LoraReader èœå•            â•‘
-echo â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•%RESET%
+echo =======================================
+echo            LoraReader ¿ØÖÆÖĞĞÄ
+echo =======================================
+echo.
+echo %YELLOW%²Ù×÷Ñ¡Ïî:%RESET%
+echo.
+echo   %GREEN%[1]%RESET% Æô¶¯Ó¦ÓÃ³ÌĞò
+echo   %GREEN%[2]%RESET% ¼ì²é¸üĞÂ
+echo   %GREEN%[3]%RESET% ÍË³ö³ÌĞò
 echo.
 
-:: ç‰ˆæœ¬æ£€æŸ¥
-echo %YELLOW%[ç‰ˆæœ¬æ£€æŸ¥ä¸­...]%RESET%
-git remote update >nul 2>&1
-git fetch >nul 2>&1
-for /f "tokens=*" %%a in ('git rev-parse HEAD') do set LOCAL_VERSION=%%a
-for /f "tokens=*" %%a in ('git rev-parse origin/main') do set REMOTE_VERSION=%%a
+choice /c 123 /n /m "ÇëÑ¡Ôñ²Ù×÷ (1-3): "
+if %errorlevel% equ 3 exit
+if %errorlevel% equ 2 goto update
+if %errorlevel% equ 1 goto start
 
-if not "%LOCAL_VERSION%"=="%REMOTE_VERSION%" (
-    echo %YELLOW%â”Œâ”€ ç‰ˆæœ¬ä¿¡æ¯ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-    echo â”‚ æœ¬åœ°ç‰ˆæœ¬: %LOCAL_VERSION:~0,7%              â”‚
-    echo â”‚ è¿œç¨‹ç‰ˆæœ¬: %REMOTE_VERSION:~0,7%              â”‚
-    echo â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜%RESET%
-    echo.
-    choice /c YN /m "ç»§ç»­ä½¿ç”¨å½“å‰ç‰ˆæœ¬? (Y=æ˜¯/N=æ›´æ–°)"
-    if errorlevel 2 goto update
-)
-
-:show_menu
-echo.
-echo %GREEN%[å¯ç”¨æ“ä½œ]%RESET%
-echo  %BLUE%[1]%RESET% å¯åŠ¨åº”ç”¨
-echo  %BLUE%[2]%RESET% æ£€æŸ¥æ›´æ–°
-echo  %BLUE%[3]%RESET% é€€å‡ºç¨‹åº
-echo.
-choice /c 123 /n /m "è¯·é€‰æ‹©æ“ä½œ (1-3): "
-if errorlevel 3 exit
-if errorlevel 2 goto update
-if errorlevel 1 goto start
-
+:: ¸üĞÂ¹¦ÄÜ
 :update
 echo.
-echo %YELLOW%[æ›´æ–°æ£€æŸ¥]%RESET%
-:: å¦‚æœ .git ç›®å½•ä¸å­˜åœ¨ï¼Œåˆå§‹åŒ–ä¸º git ä»“åº“
-if not exist ".git" (
-    git init
-    git remote add origin https://github.com/iiishop/LoraReader.git
-)
+echo %BLUE%[¸üĞÂ¼ì²é]%RESET%
+git fetch
+set LOCAL_COMMIT=
+set REMOTE_COMMIT=
+for /f "delims=" %%i in ('git rev-parse HEAD') do set LOCAL_COMMIT=%%i
+for /f "delims=" %%i in ('git rev-parse origin/main') do set REMOTE_COMMIT=%%i
 
-:: ä¿å­˜å½“å‰çš„ä¿®æ”¹ï¼ˆå¦‚æœæœ‰çš„è¯ï¼‰
-git stash
-
-:: è·å–æœ€æ–°çš„æ›´æ”¹
-git pull origin main
-if errorlevel 1 (
-    echo Update failed. Restoring previous version... (æ›´æ–°å¤±è´¥ï¼Œæ­£åœ¨æ¢å¤ä¹‹å‰çš„ç‰ˆæœ¬...)
-    git stash pop
-    pause
+if "%LOCAL_COMMIT%" neq "%REMOTE_COMMIT%" (
+    echo %YELLOW%[¸üĞÂ¿ÉÓÃ]%RESET%
+    echo ±¾µØ°æ±¾: %LOCAL_COMMIT:~0,7%
+    echo Ô¶³Ì°æ±¾: %REMOTE_COMMIT:~0,7%
+    choice /c YN /m "ÊÇ·ñÁ¢¼´¸üĞÂ? (Y/N)"
+    if %errorlevel% equ 2 goto menu
+    git pull origin main || (
+        echo %RED%[´íÎó]%RESET% ¸üĞÂÊ§°Ü
+        choice /c YN /m "ÊÇ·ñ¼ÌĞø? (Y/N)"
+        if errorlevel 2 exit
+    )
+    echo.
+    echo %GREEN%[³É¹¦]%RESET% ´úÂë¸üĞÂÍê³É
+    goto setup_env
+) else (
+    echo %GREEN%[ÌáÊ¾]%RESET% µ±Ç°ÒÑÊÇ×îĞÂ°æ±¾
+    timeout /t 2 >nul
     goto menu
 )
 
-:: æ¢å¤æœ¬åœ°ä¿®æ”¹ï¼ˆå¦‚æœæœ‰çš„è¯ï¼‰
-git stash pop
-
-echo Update completed! (æ›´æ–°å®Œæˆï¼)
-set /p confirm="Install new dependencies? (Y/N) (æ˜¯å¦å®‰è£…æ–°ä¾èµ–?) [Y]: "
-if /i "%confirm%"=="" (goto update_deps)
-if /i "%confirm%"=="y" (goto update_deps)
-if /i "%confirm%"=="Y" (goto update_deps)
-goto menu
-
-:update_deps
-echo Installing new dependencies... (å®‰è£…æ–°ä¾èµ–...)
-call :install_dependencies
-pause
-goto menu
-
+:: Æô¶¯·şÎñ
 :start
 echo.
-echo %GREEN%[å¯åŠ¨æœåŠ¡]%RESET%
-echo  %BLUE%â–¸%RESET% æ­£åœ¨å¯åŠ¨åç«¯æœåŠ¡...
-start cmd /k "title LoraReader Backend && color 0B && call .venv\Scripts\activate && cd backend && python main.py"
-
-echo  %BLUE%â–¸%RESET% æ­£åœ¨å¯åŠ¨å‰ç«¯æœåŠ¡...
-start cmd /k "title LoraReader Frontend && color 0A && cd LoraReader && npm run dev"
-
-echo  %BLUE%â–¸%RESET% ç­‰å¾…æœåŠ¡å¯åŠ¨...
-ping -n 3 localhost >nul
-
-echo  %BLUE%â–¸%RESET% æ­£åœ¨æ‰“å¼€æµè§ˆå™¨...
-start http://localhost:5173
-
-echo.
-echo %GREEN%[å¯åŠ¨å®Œæˆ]%RESET%
-echo è¯·åœ¨æµè§ˆå™¨ä¸­ä½¿ç”¨ LoraReader
+echo %BLUE%[·şÎñÆô¶¯]%RESET%
+start "LoraReader ºó¶Ë" cmd /k "call .venv\Scripts\activate && python backend/main.py"
+start "LoraReader Ç°¶Ë" cmd /k "cd LoraReader && npm run dev"
+timeout /t 5 >nul
+start "" http://localhost:5173
+echo %GREEN%[Íê³É]%RESET% ·şÎñÒÑÆô¶¯£¬ä¯ÀÀÆ÷¼´½«´ò¿ª
+echo ×¢Òâ£º·şÎñÍêÈ«Æô¶¯¿ÉÄÜĞèÒª 30-60 Ãë
 pause
 exit
+
+:: ÇåÀíÁÙÊ±ÎÄ¼ş
+if exist "temp" rd /s /q temp
