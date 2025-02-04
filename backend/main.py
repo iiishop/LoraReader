@@ -357,7 +357,8 @@ def get_lora_config(file_path):
                 'preferred_weight': config.get('preferred weight', 0),
                 'notes': config.get('notes', ''),
                 'description': config.get('description', ''),
-                'base_model': config.get('base_model', '')  # 添加基础模型配置
+                'base_model': config.get('base_model', ''),
+                'works_in_illustrious': config.get('works_in_illustrious', False)  # 添加读取 works_in_illustrious 字段
             }
     except Exception as e:
         logger.error(f"Error reading lora config: {e}")
@@ -388,6 +389,18 @@ def get_lora_files():
         lora_files = []
         files = os.listdir(current_path)
 
+        def process_lora_info(lora_info):
+            # 如果配置中标记为兼容 Illustrious，添加到元数据中
+            if lora_info.get('config', {}).get('works_in_illustrious'):
+                if 'metadata' not in lora_info:
+                    lora_info['metadata'] = {}
+                # 添加 Illustrious 到 model_info 列表中
+                if 'model_info' not in lora_info['metadata']:
+                    lora_info['metadata']['model_info'] = []
+                if 'SDXL-Illustrious' not in lora_info['metadata']['model_info']:
+                    lora_info['metadata']['model_info'].append('SDXL-Illustrious')
+            return lora_info
+
         for file in files:
             if file.endswith('.safetensors'):
                 base_name = file[:-11]
@@ -416,6 +429,9 @@ def get_lora_files():
                     'metadata': metadata,
                     'config': config_data  # 即使没有配置文件也返回空对象
                 }
+                
+                # 处理 Illustrious 兼容信息
+                lora_info = process_lora_info(lora_info)
                 lora_info = add_click_count_to_lora_info(lora_info)
                 lora_files.append(lora_info)
 
@@ -561,7 +577,8 @@ def update_lora_config():
             'activation text': config.get('activation_text', ''),
             'preferred weight': config.get('preferred_weight', 0),
             'notes': config.get('notes', ''),
-            'base_model': config.get('base_model', '')  # 添加基础模型
+            'base_model': config.get('base_model', ''),  # 添加基础模型
+            'works_in_illustrious': config.get('works_in_illustrious', False)  # 添加 Illustrious 兼容信息
         }
 
         # 添加日志以便追踪

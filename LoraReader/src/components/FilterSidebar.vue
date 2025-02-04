@@ -37,6 +37,10 @@ const metadata = computed(() => {
             if (lora.metadata.base_model) {
                 result.baseModels.add(lora.metadata.base_model);
             }
+            // 如果有 Illustrious 兼容的 LoRA，添加到基础模型列表中
+            if (lora.config?.works_in_illustrious) {
+                result.baseModels.add('SDXL-Illustrious');
+            }
         }
     });
 

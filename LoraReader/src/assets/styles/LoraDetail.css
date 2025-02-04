@@ -494,6 +494,44 @@ input.civitai-link {
     color: #333;
 }
 
+.illustrious-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.illustrious-option:hover {
+    background-color: #f0f0f0;
+}
+
+.illustrious-checkbox {
+    width: 18px;
+    height: 18px;
+}
+
+.illustrious-label {
+    font-size: 1rem;
+    color: #333;
+}
+
+.illustrious-status {
+    margin-top: 0.5rem;
+}
+
+.illustrious-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
 /* 响应式优化 */
 @media (max-width: 1024px) {
     .content-wrapper {

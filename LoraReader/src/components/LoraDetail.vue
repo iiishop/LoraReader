@@ -208,7 +208,9 @@ function startEditing() {
         notes: props.lora.config?.notes || '',
         description: props.lora.config?.description || '',
         base_model: props.lora.config?.base_model || props.lora.metadata?.base_model || '',
-        civitai_link: props.lora.config?.civitai_link || '' // 添加 civitai 链接字段
+        civitai_link: props.lora.config?.civitai_link || '',
+        works_in_illustrious: props.lora.config?.works_in_illustrious || 
+            props.lora.metadata?.base_model === 'SDXL-Illustrious'  // 添加新字段
     };
     selectedBaseModel.value = editedConfig.value.base_model;
     isEditing.value = true;
@@ -455,6 +457,18 @@ watch(() => props.show, (newVal) => {
                                         placeholder="请输入 Civitai 模型页面链接"
                                     />
                                 </div>
+
+                                <!-- 添加 Illustrious 兼容选项 -->
+                                <div class="config-item">
+                                    <label class="illustrious-option">
+                                        <input 
+                                            type="checkbox" 
+                                            v-model="editedConfig.works_in_illustrious"
+                                            class="illustrious-checkbox"
+                                        />
+                                        <span class="illustrious-label">在 SDXL-Illustrious 中可用</span>
+                                    </label>
+                                </div>
                             </template>
                             <template v-else>
                                 <template v-if="lora.has_config">
@@ -503,6 +517,14 @@ watch(() => props.show, (newVal) => {
                                                class="civitai-link">
                                                 访问 Civitai 页面
                                             </a>
+                                        </div>
+                                    </div>
+
+                                    <!-- 显示 Illustrious 兼容状态 -->
+                                    <div v-if="lora.config.works_in_illustrious" class="config-item">
+                                        <h3 class="config-title">Illustrious 兼容性</h3>
+                                        <div class="config-content illustrious-status">
+                                            <span class="illustrious-badge">✓ 可用于 SDXL-Illustrious</span>
                                         </div>
                                     </div>
                                 </template>

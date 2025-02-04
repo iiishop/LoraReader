@@ -77,6 +77,11 @@ const filteredLoraFiles = computed(() => {
     if (filters.baseModels.length > 0) {
         result = result.filter(lora => {
             const baseModel = lora.metadata?.base_model;
+            // 如果筛选包含 SDXL-Illustrious，同时检查 works_in_illustrious 标记
+            if (filters.baseModels.includes('SDXL-Illustrious')) {
+                return baseModel === 'SDXL-Illustrious' || 
+                       lora.config?.works_in_illustrious;
+            }
             return filters.baseModels.includes(baseModel);
         });
     }
