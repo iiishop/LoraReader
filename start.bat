@@ -1,6 +1,14 @@
 REM filepath: /f:/FromGitHub/LoraReader/start.bat
 @echo off
+chcp 65001 >nul
 title LoraReader
+
+:: 设置颜色代码
+set "GREEN=[32m"
+set "BLUE=[34m"
+set "RED=[31m"
+set "YELLOW=[33m"
+set "RESET=[0m"
 
 :: 设置所需的版本和下载链接
 set REQUIRED_PYTHON=3.11.9
@@ -12,22 +20,40 @@ set GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.43.0.win
 :: 创建临时下载目录
 if not exist "temp" mkdir temp
 
+:: 显示欢迎界面
+:welcome
+cls
+echo %BLUE%╔════════════════════════════════════════╗
+echo ║         LoraReader 启动管理器         ║
+echo ╚════════════════════════════════════════╝%RESET%
+echo.
+echo %GREEN%[系统检查]%RESET%
+echo  正在检查系统环境...
+
+:: 进度条动画
+setlocal enabledelayedexpansion
+for /L %%i in (1,1,20) do (
+    set "progress="
+    for /L %%j in (1,1,%%i) do set "progress=!progress!■"
+    echo [!progress!%RESET%] %%i%%0^%% \r
+    ping -n 1 localhost >nul
+)
+echo.
+echo %GREEN%[完成]%RESET% 系统检查完成
+timeout /t 1 >nul
+
 :: 检查并安装依赖
 :check_dependencies
-cls
-echo ================================
-echo Welcome to LoraReader Setup (欢迎使用 LoraReader 安装程序)
-echo ================================
-echo The following software will be installed if not present: (将会安装以下软件:)
-echo - Git
-echo - Python %REQUIRED_PYTHON%
-echo - Node.js %REQUIRED_NODE%
 echo.
-set /p confirm="Continue with installation? (Y/N) (是否继续安装?) [Y]: "
-if /i "%confirm%"=="" goto install
-if /i "%confirm%"=="y" goto install
-if /i "%confirm%"=="Y" goto install
-exit
+echo %YELLOW%[依赖检查]%RESET%
+echo 即将检查并安装以下组件:
+echo  %BLUE%▸%RESET% Git
+echo  %BLUE%▸%RESET% Python %REQUIRED_PYTHON%
+echo  %BLUE%▸%RESET% Node.js %REQUIRED_NODE%
+echo.
+choice /c YN /m "是否继续安装? (Y=是/N=否)"
+if errorlevel 2 exit
+if errorlevel 1 goto install
 
 :install
 cls
@@ -116,55 +142,46 @@ if errorlevel 1 (
 )
 cd ..
 
-:: 添加更新选项菜单
+:: 主菜单界面
 :menu
 cls
-echo ================================
-echo LoraReader Launch Menu (启动菜单)
-echo ================================
+echo %BLUE%╔════════════════════════════════════════╗
+echo ║            LoraReader 菜单            ║
+echo ╚════════════════════════════════════════╝%RESET%
+echo.
 
-:: 检查版本差异
-echo Checking version differences... (检查版本差异...)
+:: 版本检查
+echo %YELLOW%[版本检查中...]%RESET%
 git remote update >nul 2>&1
 git fetch >nul 2>&1
-
-:: 获取版本信息
 for /f "tokens=*" %%a in ('git rev-parse HEAD') do set LOCAL_VERSION=%%a
 for /f "tokens=*" %%a in ('git rev-parse origin/main') do set REMOTE_VERSION=%%a
 
-:: 比较版本
 if not "%LOCAL_VERSION%"=="%REMOTE_VERSION%" (
+    echo %YELLOW%┌─ 版本信息 ───────────────────────┐
+    echo │ 本地版本: %LOCAL_VERSION:~0,7%              │
+    echo │ 远程版本: %REMOTE_VERSION:~0,7%              │
+    echo └───────────────────────────────────┘%RESET%
     echo.
-    echo Warning: Your version differs from the remote version (警告：本地版本与远程版本不同)
-    echo Local Version (本地版本): %LOCAL_VERSION:~0,7%
-    echo Remote Version (远程版本): %REMOTE_VERSION:~0,7%
-    echo.
-    set /p continue="Continue without updating? (Y/N) (是否继续运行而不更新?) [Y]: "
-    if /i "%continue%"=="" goto show_menu
-    if /i "%continue%"=="y" goto show_menu
-    if /i "%continue%"=="Y" goto show_menu
-    
-    set /p update="Update to latest version? (Y/N) (是否更新到最新版本?) [Y]: "
-    if /i "%update%"=="" goto update
-    if /i "%update%"=="y" goto update
-    if /i "%update%"=="Y" goto update
-    goto menu
+    choice /c YN /m "继续使用当前版本? (Y=是/N=更新)"
+    if errorlevel 2 goto update
 )
 
 :show_menu
-echo 1. Start Application (启动应用)
-echo 2. Check for Updates (检查更新)
-echo 3. Exit (退出)
-echo ================================
-set /p choice="Please choose (1-3) (请选择 1-3): "
-
-if "%choice%"=="1" goto start
-if "%choice%"=="2" goto update
-if "%choice%"=="3" exit
-goto menu
+echo.
+echo %GREEN%[可用操作]%RESET%
+echo  %BLUE%[1]%RESET% 启动应用
+echo  %BLUE%[2]%RESET% 检查更新
+echo  %BLUE%[3]%RESET% 退出程序
+echo.
+choice /c 123 /n /m "请选择操作 (1-3): "
+if errorlevel 3 exit
+if errorlevel 2 goto update
+if errorlevel 1 goto start
 
 :update
-echo Checking for updates... (正在检查更新...)
+echo.
+echo %YELLOW%[更新检查]%RESET%
 :: 如果 .git 目录不存在，初始化为 git 仓库
 if not exist ".git" (
     git init
@@ -200,16 +217,22 @@ pause
 goto menu
 
 :start
-:: 启动后端服务
-start cmd /k "call .venv\Scripts\activate && cd backend && python main.py"
+echo.
+echo %GREEN%[启动服务]%RESET%
+echo  %BLUE%▸%RESET% 正在启动后端服务...
+start cmd /k "title LoraReader Backend && color 0B && call .venv\Scripts\activate && cd backend && python main.py"
 
-:: 启动前端服务
-start cmd /k "cd LoraReader && npm run dev"
+echo  %BLUE%▸%RESET% 正在启动前端服务...
+start cmd /k "title LoraReader Frontend && color 0A && cd LoraReader && npm run dev"
 
-:: 等待前端服务启动
-timeout /t 1
+echo  %BLUE%▸%RESET% 等待服务启动...
+ping -n 3 localhost >nul
 
-:: 打开默认浏览器访问前端页面
+echo  %BLUE%▸%RESET% 正在打开浏览器...
 start http://localhost:5173
 
+echo.
+echo %GREEN%[启动完成]%RESET%
+echo 请在浏览器中使用 LoraReader
+pause
 exit
