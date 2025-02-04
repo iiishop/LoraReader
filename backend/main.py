@@ -358,7 +358,8 @@ def get_lora_config(file_path):
                 'notes': config.get('notes', ''),
                 'description': config.get('description', ''),
                 'base_model': config.get('base_model', ''),
-                'works_in_illustrious': config.get('works_in_illustrious', False)  # 添加读取 works_in_illustrious 字段
+                'works_in_illustrious': config.get('works_in_illustrious', False),
+                'civitai_link': config.get('civitai_link', '')  # 使用相同的字段名
             }
     except Exception as e:
         logger.error(f"Error reading lora config: {e}")
@@ -1036,3 +1037,4 @@ if __name__ == '__main__':
     except Exception as e:        
         logger.error(f"Server error: {e}")
         input("Press Enter to exit...")
+
